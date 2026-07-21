@@ -76,6 +76,7 @@ class TempoRepository(private val context: Context) {
             )
             val rawJson = json.encodeToString(backup)
             dataFile.writeText(rawJson)
+            com.example.tempo.widget.TempoWidgetProvider.updateAllWidgets(context)
         } catch (e: Exception) {
             e.printStackTrace()
         }

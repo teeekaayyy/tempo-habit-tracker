@@ -58,6 +58,7 @@ class TimerManager(private val context: Context? = null) {
         try {
             val rawJson = json.encodeToString(map.values.toList())
             prefs?.edit()?.putString("active_timers_json", rawJson)?.apply()
+            context?.let { com.example.tempo.widget.TempoWidgetProvider.updateAllWidgets(it) }
         } catch (e: Exception) {
             e.printStackTrace()
         }

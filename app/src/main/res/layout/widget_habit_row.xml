@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/habit_row_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="8dp"
+    android:layout_marginBottom="6dp"
+    android:background="@drawable/widget_row_bg">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/item_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Habit Title"
+                android:textColor="#F8FAFC"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/item_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="30m target"
+                android:textColor="#94A3B8"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/item_action_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="▶ Start"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="5dp"
+            android:background="@drawable/widget_btn_bg" />
+    </LinearLayout>
+
+    <!-- Progress Time Bar Container (Shown when habit timer is active) -->
+    <LinearLayout
+        android:id="@+id/item_progress_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingTop="6dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/item_timer_text"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="⏱️ 00:00:00 tracking..."
+                android:textColor="#10B981"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/item_progress_percent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0%"
+                android:textColor="#10B981"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/item_progress_bar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="4dp"
+            android:progress="0"
+            android:max="100"
+            android:progressDrawable="@drawable/widget_progress_drawable" />
+    </LinearLayout>
+
+</LinearLayout>
