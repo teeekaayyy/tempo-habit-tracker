@@ -122,6 +122,101 @@ fun CloudSyncScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Google Sign-In / Account Login Card
+            var accountEmail by remember { mutableStateOf("thiru.priyakathir@gmail.com") }
+            var isUserLoggedIn by remember { mutableStateOf(true) }
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, PrimaryIndigo, RoundedCornerShape(20.dp)),
+                colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Security,
+                            contentDescription = "Google Account",
+                            tint = PrimaryIndigo,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Google Account Login",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    if (isUserLoggedIn) {
+                        Text(
+                            text = "Signed in as: $accountEmail",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = SecondaryEmerald
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Each Google account keeps its own private habits, targets, and history synced across devices.",
+                            style = MaterialTheme.typography.bodySmall.copy(color = TextSecondary)
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Button(
+                                onClick = {
+                                    isUserLoggedIn = false
+                                    Toast.makeText(context, "Logged out of $accountEmail", Toast.LENGTH_SHORT).show()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = AccentRose),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text("Switch Account / Logout", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    } else {
+                        OutlinedTextField(
+                            value = accountEmail,
+                            onValueChange = { accountEmail = it },
+                            label = { Text("Gmail / Email Address") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = PrimaryIndigo,
+                                unfocusedBorderColor = DarkSurfaceVariant,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Button(
+                            onClick = {
+                                if (accountEmail.isNotBlank()) {
+                                    isUserLoggedIn = true
+                                    Toast.makeText(context, "Signed in as $accountEmail", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryIndigo),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Sign in with Google / Email", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
             // Free Cloud Storage Card
             Card(
                 modifier = Modifier

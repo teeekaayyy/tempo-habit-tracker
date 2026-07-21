@@ -15,8 +15,21 @@ android {
         versionName = "1.0"
     }
 
+    signingConfigs {
+        create("shared") {
+            storeFile = file("tempo_debug.keystore")
+            storePassword = "androidappsecret"
+            keyAlias = "tempo"
+            keyPassword = "androidappsecret"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("shared")
+        }
         release {
+            signingConfig = signingConfigs.getByName("shared")
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
