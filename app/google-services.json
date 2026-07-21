@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "341617153165",
+    "project_id": "tempo-habit-tracker",
+    "storage_bucket": "tempo-habit-tracker.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:341617153165:android:4d81d3880742ad21617ec4",
+        "android_client_info": {
+          "package_name": "com.example.tempo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDLBpkl5IG1MOb_DsRem8nji8Hf8_pw4pY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
