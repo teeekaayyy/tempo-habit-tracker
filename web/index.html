@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tempo - Cloud Habit Tracker</title>
+  <meta name="description" content="Track your daily habits, manage target durations, and sync effortlessly across phone and desktop.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">⚡</div>
+        <div class="brand-text">
+          <h1>Tempo</h1>
+          <span>Habit Stack</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-item active" data-tab="dashboard">
+          <span class="nav-icon">📊</span> Dashboard
+        </button>
+
+        <button class="nav-item" data-tab="habits">
+          <span class="nav-icon">🎯</span> Habits
+        </button>
+
+        <button class="nav-item" data-tab="cloud">
+          <span class="nav-icon">☁️</span> Cloud Sync
+        </button>
+
+        <button class="nav-item" data-tab="apk">
+          <span class="nav-icon">📱</span> Android App
+        </button>
+      </nav>
+
+      <div class="user-card">
+        <div class="avatar">👤</div>
+        <div class="user-info">
+          <div class="user-name" id="user-display-name">Cloud Account</div>
+          <div class="sync-badge" id="sync-status-badge">● Synced</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <header class="top-bar">
+        <div class="header-title">
+          <h2 id="page-title">Dashboard Overview</h2>
+          <p id="page-subtitle">Track habit duration, manage sessions, and stay consistent.</p>
+        </div>
+
+        <div class="header-actions">
+          <button class="btn btn-primary" id="btn-open-create">+ New Habit</button>
+        </div>
+      </header>
+
+      <!-- Active Timers Header Widget -->
+      <section class="active-timers-banner" id="active-timers-banner" style="display: none;">
+        <div class="banner-title">
+          <span>⏱️ Active Stacked Timers</span>
+          <span class="badge" id="active-timer-count">0 Running</span>
+        </div>
+        <div class="active-timer-list" id="active-timer-list"></div>
+      </section>
+
+      <!-- Tab: Dashboard -->
+      <section class="tab-content active" id="tab-dashboard">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-icon">🔥</span>
+            <div class="stat-info">
+              <span class="stat-value" id="stat-streak">0 Days</span>
+              <span class="stat-label">Current Streak</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <span class="stat-icon">⏳</span>
+            <div class="stat-info">
+              <span class="stat-value" id="stat-today-time">0 hrs</span>
+              <span class="stat-label">Tracked Today</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <span class="stat-icon">🎯</span>
+            <div class="stat-info">
+              <span class="stat-value" id="stat-completion">0%</span>
+              <span class="stat-label">Target Completion</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-header">
+          <h3>⭐ Favorite Activities</h3>
+        </div>
+        <div class="habits-grid" id="favorites-grid"></div>
+
+        <div class="section-header" style="margin-top: 2rem;">
+          <h3>All Habits</h3>
+        </div>
+        <div class="habits-grid" id="dashboard-habits-grid"></div>
+      </section>
+
+      <!-- Tab: Habits Manager -->
+      <section class="tab-content" id="tab-habits">
+        <div class="section-header">
+          <h3>Habit Library</h3>
+        </div>
+        <div class="habits-grid" id="all-habits-grid"></div>
+      </section>
+
+      <!-- Tab: Cloud Sync & Account -->
+      <section class="tab-content" id="tab-cloud">
+        <div class="card cloud-card">
+          <h3>☁️ Real-time Cloud Account Sync</h3>
+          <p>Sync your habit data seamlessly between this Web Application and your Android phone app.</p>
+          
+          <div class="cloud-status-box">
+            <div class="status-indicator online"></div>
+            <div>
+              <strong id="cloud-account-status">Connected to Cloud Sync</strong>
+              <div class="subtext">Auto-syncing every 5 seconds & on session completion.</div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 1.5rem;">
+            <label for="cloud-user-id">Account Sync Key / Email:</label>
+            <div class="input-row">
+              <input type="text" id="cloud-user-id" value="user_tempo_cloud_123" class="input-text">
+              <button class="btn btn-secondary" id="btn-save-cloud-key">Save Account</button>
+            </div>
+          </div>
+
+          <div class="cloud-steps">
+            <h4>How to sync with Android App:</h4>
+            <ol>
+              <li>Go to <strong>Cloud Sync</strong> tab on your Tempo Android App.</li>
+              <li>Enter the same Account Key: <code id="display-cloud-key">user_tempo_cloud_123</code>.</li>
+              <li>All your habits, target durations (including Sleep 8h), and tracking sessions will automatically mirror across both devices!</li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: Download APK -->
+      <section class="tab-content" id="tab-apk">
+        <div class="card apk-card">
+          <h3>📱 Download Tempo Android App</h3>
+          <p>You can maintain releases in GitHub and download compiled APKs directly onto your phone.</p>
+          
+          <div class="apk-download-box">
+            <div class="apk-icon">🤖</div>
+            <div class="apk-info">
+              <h4>Tempo Habit Tracker (Android APK)</h4>
+              <p>Version 1.0.0 • Background Timer Service • Favorites Home Widget</p>
+              <a href="https://github.com" target="_blank" class="btn btn-primary" id="btn-download-apk-link">
+                ⬇️ Download APK from GitHub
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Create Habit Modal -->
+  <div class="modal-overlay" id="modal-create-habit" style="display: none;">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Create New Habit</h3>
+        <button class="btn-close" id="btn-close-modal">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="habit-title">Habit Title *</label>
+          <input type="text" id="habit-title" placeholder="e.g. Sleep, Morning Meditation, Reading" class="input-text">
+        </div>
+
+        <div class="form-group">
+          <label for="habit-desc">Description (Optional)</label>
+          <input type="text" id="habit-desc" placeholder="e.g. 8 hours restful sleep" class="input-text">
+        </div>
+
+        <div class="form-group">
+          <label>Category</label>
+          <select id="habit-category" class="input-select">
+            <option value="HEALTH">Health & Wellness</option>
+            <option value="FITNESS">Fitness & Exercise</option>
+            <option value="PRODUCTIVITY" selected>Productivity & Work</option>
+            <option value="MINDFULNESS">Mindfulness & Rest</option>
+            <option value="LEARNING">Learning & Growth</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <div class="toggle-row">
+            <label for="habit-enable-target">Set Target Duration</label>
+            <input type="checkbox" id="habit-enable-target" checked class="input-toggle">
+          </div>
+          <p class="subtext">Turn off for open-ended tracking with no target time limit.</p>
+        </div>
+
+        <div id="target-duration-controls">
+          <div class="form-group">
+            <label>Preset Durations:</label>
+            <div class="presets-row">
+              <button class="chip-preset" data-mins="15">15m</button>
+              <button class="chip-preset" data-mins="30">30m</button>
+              <button class="chip-preset" data-mins="60">1h</button>
+              <button class="chip-preset" data-mins="120">2h</button>
+              <button class="chip-preset" data-mins="240">4h</button>
+              <button class="chip-preset active" data-mins="480">8h (Sleep)</button>
+              <button class="chip-preset" data-mins="720">12h</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="slider-header">
+              <label for="habit-target-slider">Target Time:</label>
+              <span id="target-slider-value" class="highlight-text">8 hrs</span>
+            </div>
+            <input type="range" id="habit-target-slider" min="5" max="1440" step="5" value="480" class="input-slider">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="toggle-row">
+            <label for="habit-favorite">⭐ Pin to Favorites & Home Widget</label>
+            <input type="checkbox" id="habit-favorite" class="input-toggle">
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-habit">Cancel</button>
+        <button class="btn btn-primary" id="btn-save-habit">Save Habit</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
