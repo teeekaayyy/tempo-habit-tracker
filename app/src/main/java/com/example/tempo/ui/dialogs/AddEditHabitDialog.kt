@@ -20,13 +20,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -52,13 +49,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.example.tempo.data.model.Category
 import com.example.tempo.data.model.Habit
-import com.example.tempo.data.model.HabitCategory
-import com.example.tempo.theme.DarkBackground
 import com.example.tempo.theme.DarkSurface
 import com.example.tempo.theme.DarkSurfaceVariant
 import com.example.tempo.theme.FavoriteGold
-import com.example.tempo.theme.PresetHabitColors
 import com.example.tempo.theme.PrimaryIndigo
 import com.example.tempo.theme.SecondaryEmerald
 import com.example.tempo.theme.TextPrimary
@@ -68,14 +63,13 @@ import java.util.UUID
 
 @Composable
 fun AddEditHabitDialog(
+    categories: List<Category>,
     onDismiss: () -> Unit,
     onSave: (Habit) -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf(HabitCategory.PRODUCTIVITY) }
-    var selectedColorHex by remember { mutableStateOf(PresetHabitColors[0]) }
-    var enableTarget by remember { mutableStateOf(true) }
+    var selectedCategoryId by remember { mutableStateOf(categories.firstOrNull()?.id ?: "cat_prod") }
     var targetMinutes by remember { mutableFloatStateOf(30f) }
     var isFavorite by remember { mutableStateOf(false) }
 
@@ -164,9 +158,9 @@ fun AddEditHabitDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Category selector
+                // Category selector (Category determines the color theme!)
                 Text(
-                    text = "Category",
+                    text = "Category (Sets Color Theme)",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = TextSecondary
@@ -176,170 +170,68 @@ fun AddEditHabitDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(HabitCategory.entries) { category ->
-                        val isSelected = category == selectedCategory
+                    items(categories) { category ->
+                        val isSelected = category.id == selectedCategoryId
+                        val catColor = parseHexColor(category.colorHex)
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(if (isSelected) PrimaryIndigo else DarkSurfaceVariant)
-                                .clickable { selectedCategory = category }
+                                .background(if (isSelected) catColor else DarkSurfaceVariant)
+                                .clickable { selectedCategoryId = category.id }
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
-                            Text(
-                                text = category.displayName,
-                                fontSize = 12.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) Color.White else TextSecondary
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Color Theme selector
-                Text(
-                    text = "Color Accent",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextSecondary
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    PresetHabitColors.forEach { hex ->
-                        val parsed = parseHexColor(hex)
-                        val isSelected = hex == selectedColorHex
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(parsed)
-                                .clickable { selectedColorHex = hex },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Selected",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isSelected) Color.White else catColor)
                                 )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Target Duration Header + Enable Switch
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "Set Target Duration",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextPrimary
-                        )
-                        Text(
-                            text = if (enableTarget) "Goal time for each session" else "Open-ended (No target time)",
-                            fontSize = 12.sp,
-                            color = TextSecondary
-                        )
-                    }
-                    Switch(
-                        checked = enableTarget,
-                        onCheckedChange = { enableTarget = it },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = SecondaryEmerald,
-                            checkedTrackColor = SecondaryEmerald.copy(alpha = 0.4f),
-                            uncheckedThumbColor = TextSecondary,
-                            uncheckedTrackColor = DarkSurfaceVariant
-                        )
-                    )
-                }
-
-                if (enableTarget) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    val minsInt = targetMinutes.toInt()
-                    val formattedTime = when {
-                        minsInt >= 60 && minsInt % 60 == 0 -> "${minsInt / 60} hrs"
-                        minsInt >= 60 -> "${minsInt / 60} hrs ${minsInt % 60} mins"
-                        else -> "$minsInt mins"
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "Target Time",
-                            fontSize = 13.sp,
-                            color = TextSecondary
-                        )
-                        Text(
-                            text = formattedTime,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = SecondaryEmerald
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Preset Quick Chips (15m, 30m, 1h, 2h, 4h, 8h Sleep, 12h)
-                    val presetMinutes = listOf(15, 30, 45, 60, 120, 240, 480, 720)
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        items(presetMinutes) { pMins ->
-                            val label = when {
-                                pMins == 480 -> "8h (Sleep)"
-                                pMins >= 60 -> "${pMins / 60}h"
-                                else -> "${pMins}m"
-                            }
-                            val isSelected = targetMinutes.toInt() == pMins
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isSelected) SecondaryEmerald else DarkSurfaceVariant)
-                                    .clickable { targetMinutes = pMins.toFloat() }
-                                    .padding(horizontal = 10.dp, vertical = 5.dp)
-                            ) {
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = label,
+                                    text = category.name,
                                     fontSize = 12.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) Color.Black else TextPrimary
+                                    color = if (isSelected) Color.White else TextSecondary
                                 )
                             }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Slider(
-                        value = targetMinutes,
-                        onValueChange = { targetMinutes = it },
-                        valueRange = 5f..1440f, // 5m up to 24 hours
-                        steps = 286, // 5m increments up to 1440m
-                        colors = SliderDefaults.colors(
-                            thumbColor = SecondaryEmerald,
-                            activeTrackColor = SecondaryEmerald,
-                            inactiveTrackColor = DarkSurfaceVariant
-                        )
-                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+
+                // Target Duration Slider
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Target Duration",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextSecondary
+                    )
+                    Text(
+                        text = "${targetMinutes.toInt()} mins",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = SecondaryEmerald
+                    )
+                }
+                Slider(
+                    value = targetMinutes,
+                    onValueChange = { targetMinutes = it },
+                    valueRange = 5f..120f,
+                    steps = 22,
+                    colors = SliderDefaults.colors(
+                        thumbColor = SecondaryEmerald,
+                        activeTrackColor = SecondaryEmerald,
+                        inactiveTrackColor = DarkSurfaceVariant
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Pin to Favourites toggle
                 Row(
@@ -394,14 +286,12 @@ fun AddEditHabitDialog(
                             if (title.isBlank()) {
                                 titleError = true
                             } else {
-                                val finalTarget = if (enableTarget) targetMinutes.toInt() else 0
                                 val newHabit = Habit(
                                     id = UUID.randomUUID().toString(),
                                     title = title.trim(),
                                     description = description.trim(),
-                                    category = selectedCategory,
-                                    colorHex = selectedColorHex,
-                                    targetDurationMinutes = finalTarget,
+                                    categoryId = selectedCategoryId,
+                                    targetDurationMinutes = targetMinutes.toInt(),
                                     isFavorite = isFavorite,
                                     createdAt = System.currentTimeMillis()
                                 )

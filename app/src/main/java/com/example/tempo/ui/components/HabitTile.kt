@@ -2,19 +2,16 @@ package com.example.tempo.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -38,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.tempo.data.model.Category
 import com.example.tempo.data.model.Habit
 import com.example.tempo.theme.DarkSurface
 import com.example.tempo.theme.DarkSurfaceVariant
@@ -51,12 +49,14 @@ import com.example.tempo.theme.parseHexColor
 @Composable
 fun HabitTile(
     habit: Habit,
+    category: Category?,
     isTimerRunning: Boolean,
     onStartTimer: () -> Unit,
     onToggleFavorite: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val habitColor = parseHexColor(habit.colorHex)
+    val habitColor = category?.let { parseHexColor(it.colorHex) } ?: PrimaryIndigo
+    val categoryName = category?.name ?: "General"
 
     Card(
         modifier = Modifier
@@ -77,7 +77,7 @@ fun HabitTile(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Left color pill & info
+            // Left color pill & info (inherited from Category)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
@@ -132,11 +132,12 @@ fun HabitTile(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(DarkSurfaceVariant)
+                                .background(habitColor.copy(alpha = 0.15f))
+                                .border(1.dp, habitColor.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = habit.category.displayName,
+                                text = categoryName,
                                 fontSize = 10.sp,
                                 color = habitColor,
                                 fontWeight = FontWeight.SemiBold
@@ -153,9 +154,8 @@ fun HabitTile(
                                 modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(2.dp))
-                            val targetText = if (habit.targetDurationMinutes <= 0) "Open-ended" else if (habit.targetDurationMinutes >= 60) "${habit.targetDurationMinutes / 60}h ${habit.targetDurationMinutes % 60}m target".replace(" 0m", "") else "${habit.targetDurationMinutes}m target"
                             Text(
-                                text = targetText,
+                                text = "${habit.targetDurationMinutes}m target",
                                 fontSize = 10.sp,
                                 color = TextSecondary
                             )

@@ -14,13 +14,16 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        val openAddHabitDirectly = intent?.action == "OPEN_ADD_HABIT"
+
         setContent {
             TempoTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainNavigation()
+                    MainNavigation(openAddHabitDirectly = openAddHabitDirectly)
                 }
             }
         }

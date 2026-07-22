@@ -8,22 +8,31 @@ import com.example.tempo.analytics.DailyComparisonStats
 import com.example.tempo.analytics.DayOfWeekStat
 import com.example.tempo.analytics.StatsCalculator
 import com.example.tempo.analytics.StreakInfo
+import com.example.tempo.data.auth.AuthManager
 import com.example.tempo.data.model.ActiveTimer
+import com.example.tempo.data.model.Category
 import com.example.tempo.data.model.Habit
 import com.example.tempo.data.model.HabitSession
+import com.example.tempo.data.model.UserAccount
 import com.example.tempo.data.repository.TempoRepository
 import com.example.tempo.service.TimerManager
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 
 class TempoViewModel(application: Application) : AndroidViewModel(application) {
 
-    val repository = TempoRepository(application.applicationContext)
+    val authManager = AuthManager(application.applicationContext)
+    private val _currentUser = MutableStateFlow<UserAccount?>(authManager.getCurrentAccount())
+    val currentUser: StateFlow<UserAccount?> = _currentUser.asStateFlow()
+
+    var repository = TempoRepository(application.applicationContext, _currentUser.value)
     val timerManager = TimerManager(application.applicationContext)
 
+    val categories: StateFlow<List<Category>> = repository.categories
     val habits: StateFlow<List<Habit>> = repository.habits
     val sessions: StateFlow<List<HabitSession>> = repository.sessions
     val activeTimers: StateFlow<Map<String, ActiveTimer>> = timerManager.activeTimers
@@ -45,8 +54,8 @@ class TempoViewModel(application: Application) : AndroidViewModel(application) {
             emptyList()
         )
 
-    val categoryStats: StateFlow<List<CategoryStat>> = combine(habits, sessions) { habitList, sessList ->
-        StatsCalculator.getCategoryStats(habitList, sessList)
+    val categoryStats: StateFlow<List<CategoryStat>> = combine(categories, habits, sessions) { catList, habitList, sessList ->
+        StatsCalculator.getCategoryStats(catList, habitList, sessList)
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),
@@ -61,6 +70,25 @@ class TempoViewModel(application: Application) : AndroidViewModel(application) {
             StreakInfo(0, 0)
         )
 
+    fun createAccount(username: String, pin: String): UserAccount {
+        val account = authManager.createAccount(username, pin)
+        _currentUser.value = account
+        repository = TempoRepository(getApplication<Application>().applicationContext, account)
+        return account
+    }
+
+    fun addCategory(category: Category) {
+        repository.addCategory(category)
+    }
+
+    fun updateCategory(category: Category) {
+        repository.updateCategory(category)
+    }
+
+    fun deleteCategory(categoryId: String) {
+        repository.deleteCategory(categoryId)
+    }
+
     fun addHabit(habit: Habit) {
         repository.addHabit(habit)
     }
@@ -74,7 +102,6 @@ class TempoViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteHabit(habitId: String) {
-        // Also stop any running timer for this habit
         if (timerManager.isTimerRunning(habitId)) {
             timerManager.endTimer(habitId) { _, _, _, _ -> }
         }

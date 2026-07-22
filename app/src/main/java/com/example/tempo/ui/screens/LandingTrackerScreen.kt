@@ -1,6 +1,5 @@
 package com.example.tempo.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,7 +23,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Timer
@@ -56,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.tempo.data.model.Category
 import com.example.tempo.data.model.Habit
 import com.example.tempo.theme.DarkBackground
 import com.example.tempo.theme.DarkSurface
@@ -70,20 +72,26 @@ import com.example.tempo.theme.parseHexColor
 import com.example.tempo.ui.components.ActiveTimersHeader
 import com.example.tempo.ui.components.HabitTile
 import com.example.tempo.ui.dialogs.AddEditHabitDialog
+import com.example.tempo.ui.dialogs.CategoryManagerDialog
 import com.example.tempo.ui.viewmodel.TempoViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LandingTrackerScreen(
     viewModel: TempoViewModel,
+    openAddHabitDirectly: Boolean = false,
     onNavigateToDashboard: () -> Unit,
     onNavigateToCloudSync: () -> Unit
 ) {
     val habits by viewModel.habits.collectAsState()
+    val categories by viewModel.categories.collectAsState()
     val activeTimers by viewModel.activeTimers.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
 
-    var showAddDialog by remember { mutableStateOf(false) }
+    var showAddDialog by remember { mutableStateOf(openAddHabitDirectly) }
+    var showCategoryDialog by remember { mutableStateOf(false) }
 
+    val categoryMap = remember(categories) { categories.associateBy { it.id } }
     val favoriteHabits = habits.filter { it.isFavorite }
     val regularHabits = habits.filter { !it.isFavorite }
 
@@ -108,17 +116,36 @@ fun LandingTrackerScreen(
                                 modifier = Modifier.size(16.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "Tempo",
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.ExtraBold,
-                                color = TextPrimary
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Tempo",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = TextPrimary
+                                )
                             )
-                        )
+                            currentUser?.let { user ->
+                                Text(
+                                    text = "@${user.username}",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontSize = 10.sp,
+                                        color = SecondaryEmerald,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                )
+                            }
+                        }
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showCategoryDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Category,
+                            contentDescription = "Categories",
+                            tint = TextPrimary
+                        )
+                    }
                     IconButton(onClick = onNavigateToDashboard) {
                         Icon(
                             imageVector = Icons.Default.BarChart,
@@ -154,15 +181,16 @@ fun LandingTrackerScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Live Stacked Timers Header (if any timers are actively running)
+            // Live Stacked Timers Header
             ActiveTimersHeader(
                 activeTimers = activeTimers,
+                categoryMap = categoryMap,
                 onTogglePause = { habitId -> viewModel.togglePauseTimer(habitId) },
                 onEndTimer = { habitId -> viewModel.endTimer(habitId) }
             )
 
             if (habits.isEmpty()) {
-                // Initial clean slate onboarding empty state
+                // Initial clean onboarding state
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -204,7 +232,7 @@ fun LandingTrackerScreen(
                             Spacer(modifier = Modifier.height(16.dp))
 
                             Text(
-                                text = "Welcome to Tempo",
+                                text = "Welcome, ${currentUser?.username ?: "Tracker"}!",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = TextPrimary
@@ -214,7 +242,7 @@ fun LandingTrackerScreen(
                             Spacer(modifier = Modifier.height(8.dp))
 
                             Text(
-                                text = "Your tracker is clean with no pre-built habits.\nAdd your personalized daily habits and tap to start tracking with live stopwatch timers!",
+                                text = "Your tracker is clean with no pre-built habits.\nAdd your custom habits and tap to start tracking with live stopwatch timers!",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = TextSecondary,
                                     textAlign = TextAlign.Center
@@ -280,8 +308,10 @@ fun LandingTrackerScreen(
                                 ) {
                                     items(favoriteHabits) { habit ->
                                         val isRunning = activeTimers.containsKey(habit.id)
+                                        val cat = categoryMap[habit.categoryId]
                                         FavoriteHabitCard(
                                             habit = habit,
+                                            category = cat,
                                             isTimerRunning = isRunning,
                                             onStartTimer = { viewModel.startTimer(habit) },
                                             onToggleFavorite = { viewModel.toggleFavorite(habit.id) }
@@ -307,8 +337,10 @@ fun LandingTrackerScreen(
                     // Habits List
                     items(if (favoriteHabits.isNotEmpty()) regularHabits else habits) { habit ->
                         val isRunning = activeTimers.containsKey(habit.id)
+                        val cat = categoryMap[habit.categoryId]
                         HabitTile(
                             habit = habit,
+                            category = cat,
                             isTimerRunning = isRunning,
                             onStartTimer = { viewModel.startTimer(habit) },
                             onToggleFavorite = { viewModel.toggleFavorite(habit.id) },
@@ -322,6 +354,7 @@ fun LandingTrackerScreen(
 
     if (showAddDialog) {
         AddEditHabitDialog(
+            categories = categories,
             onDismiss = { showAddDialog = false },
             onSave = { newHabit ->
                 viewModel.addHabit(newHabit)
@@ -329,16 +362,26 @@ fun LandingTrackerScreen(
             }
         )
     }
+
+    if (showCategoryDialog) {
+        CategoryManagerDialog(
+            categories = categories,
+            onDismiss = { showCategoryDialog = false },
+            onAddCategory = { cat -> viewModel.addCategory(cat) },
+            onDeleteCategory = { catId -> viewModel.deleteCategory(catId) }
+        )
+    }
 }
 
 @Composable
 private fun FavoriteHabitCard(
     habit: Habit,
+    category: Category?,
     isTimerRunning: Boolean,
     onStartTimer: () -> Unit,
     onToggleFavorite: () -> Unit
 ) {
-    val habitColor = parseHexColor(habit.colorHex)
+    val habitColor = category?.let { parseHexColor(it.colorHex) } ?: PrimaryIndigo
 
     Card(
         modifier = Modifier

@@ -45,11 +45,6 @@
                 android:resource="@xml/tempo_widget_info" />
         </receiver>
 
-        <service
-            android:name=".widget.TempoWidgetService"
-            android:permission="android.permission.BIND_REMOTEVIEWS"
-            android:exported="false" />
-
     </application>
 
 </manifest>

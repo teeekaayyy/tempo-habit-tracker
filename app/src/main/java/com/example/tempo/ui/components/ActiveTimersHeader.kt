@@ -41,10 +41,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.tempo.analytics.StatsCalculator
 import com.example.tempo.data.model.ActiveTimer
+import com.example.tempo.data.model.Category
 import com.example.tempo.theme.AccentRose
 import com.example.tempo.theme.DarkSurface
 import com.example.tempo.theme.PrimaryIndigo
-import com.example.tempo.theme.PrimaryViolet
 import com.example.tempo.theme.SecondaryEmerald
 import com.example.tempo.theme.TextPrimary
 import com.example.tempo.theme.TextSecondary
@@ -53,6 +53,7 @@ import com.example.tempo.theme.parseHexColor
 @Composable
 fun ActiveTimersHeader(
     activeTimers: Map<String, ActiveTimer>,
+    categoryMap: Map<String, Category> = emptyMap(),
     onTogglePause: (String) -> Unit,
     onEndTimer: (String) -> Unit
 ) {
@@ -106,8 +107,10 @@ fun ActiveTimersHeader(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     activeTimers.values.forEach { timer ->
+                        val cat = categoryMap[timer.categoryId]
                         ActiveTimerRow(
                             timer = timer,
+                            category = cat,
                             onTogglePause = { onTogglePause(timer.habitId) },
                             onEndTimer = { onEndTimer(timer.habitId) }
                         )
@@ -121,10 +124,11 @@ fun ActiveTimersHeader(
 @Composable
 private fun ActiveTimerRow(
     timer: ActiveTimer,
+    category: Category?,
     onTogglePause: () -> Unit,
     onEndTimer: () -> Unit
 ) {
-    val habitColor = parseHexColor(timer.habitColorHex)
+    val habitColor = category?.let { parseHexColor(it.colorHex) } ?: PrimaryIndigo
 
     Row(
         modifier = Modifier

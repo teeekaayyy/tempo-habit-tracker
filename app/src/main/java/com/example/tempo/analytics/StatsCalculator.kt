@@ -1,7 +1,7 @@
 package com.example.tempo.analytics
 
+import com.example.tempo.data.model.Category
 import com.example.tempo.data.model.Habit
-import com.example.tempo.data.model.HabitCategory
 import com.example.tempo.data.model.HabitSession
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -26,7 +26,7 @@ data class DayOfWeekStat(
 )
 
 data class CategoryStat(
-    val category: HabitCategory,
+    val category: Category,
     val totalSeconds: Long,
     val percentage: Float
 )
@@ -122,16 +122,18 @@ object StatsCalculator {
         return days
     }
 
-    fun getCategoryStats(habits: List<Habit>, sessions: List<HabitSession>): List<CategoryStat> {
-        if (sessions.isEmpty() || habits.isEmpty()) return emptyList()
+    fun getCategoryStats(categories: List<Category>, habits: List<Habit>, sessions: List<HabitSession>): List<CategoryStat> {
+        if (sessions.isEmpty() || habits.isEmpty() || categories.isEmpty()) return emptyList()
 
+        val catMap = categories.associateBy { it.id }
         val habitMap = habits.associateBy { it.id }
-        val categoryTotals = mutableMapOf<HabitCategory, Long>()
+        val categoryTotals = mutableMapOf<Category, Long>()
 
         for (session in sessions) {
             val habit = habitMap[session.habitId] ?: continue
-            val current = categoryTotals.getOrDefault(habit.category, 0L)
-            categoryTotals[habit.category] = current + session.durationSeconds
+            val category = catMap[habit.categoryId] ?: continue
+            val current = categoryTotals.getOrDefault(category, 0L)
+            categoryTotals[category] = current + session.durationSeconds
         }
 
         val grandTotal = categoryTotals.values.sum().toFloat()

@@ -58,6 +58,7 @@ import com.example.tempo.theme.DarkSurface
 import com.example.tempo.theme.DarkSurfaceVariant
 import com.example.tempo.theme.PrimaryIndigo
 import com.example.tempo.theme.PrimaryViolet
+import com.example.tempo.theme.parseHexColor
 import com.example.tempo.theme.SecondaryEmerald
 import com.example.tempo.theme.TextPrimary
 import com.example.tempo.theme.TextSecondary
@@ -205,13 +206,14 @@ fun DashboardScreen(
                         Spacer(modifier = Modifier.height(16.dp))
 
                         categoryStats.forEach { catStat ->
+                            val catColor = parseHexColor(catStat.category.colorHex)
                             Column(modifier = Modifier.padding(vertical = 6.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
-                                        text = catStat.category.displayName,
+                                        text = catStat.category.name,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = TextPrimary
@@ -229,7 +231,7 @@ fun DashboardScreen(
                                         .fillMaxWidth()
                                         .height(8.dp)
                                         .clip(RoundedCornerShape(4.dp)),
-                                    color = PrimaryIndigo,
+                                    color = catColor,
                                     trackColor = DarkSurfaceVariant
                                 )
                             }

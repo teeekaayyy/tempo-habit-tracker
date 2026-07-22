@@ -2,8 +2,11 @@ package com.example.tempo.data.repository
 
 import android.content.Context
 import com.example.tempo.data.model.BackupData
+import com.example.tempo.data.model.Category
+import com.example.tempo.data.model.DefaultCategories
 import com.example.tempo.data.model.Habit
 import com.example.tempo.data.model.HabitSession
+import com.example.tempo.data.model.UserAccount
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +22,10 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
-class TempoRepository(private val context: Context) {
+class TempoRepository(
+    private val context: Context,
+    private val currentUser: UserAccount?
+) {
     private val json = Json {
         prettyPrint = true
         ignoreUnknownKeys = true
@@ -27,7 +33,13 @@ class TempoRepository(private val context: Context) {
     }
 
     private val dataFile: File
-        get() = File(context.filesDir, "tempo_data_v1.json")
+        get() {
+            val uid = currentUser?.userId ?: "guest"
+            return File(context.filesDir, "tempo_data_$uid.json")
+        }
+
+    private val _categories = MutableStateFlow<List<Category>>(DefaultCategories)
+    val categories: StateFlow<List<Category>> = _categories.asStateFlow()
 
     private val _habits = MutableStateFlow<List<Habit>>(emptyList())
     val habits: StateFlow<List<Habit>> = _habits.asStateFlow()
@@ -50,11 +62,12 @@ class TempoRepository(private val context: Context) {
                 if (dataFile.exists()) {
                     val rawJson = dataFile.readText()
                     val backupData = json.decodeFromString<BackupData>(rawJson)
+                    _categories.value = if (backupData.categories.isNotEmpty()) backupData.categories else DefaultCategories
                     _habits.value = backupData.habits
                     _sessions.value = backupData.sessions
                     _lastSyncTimestamp.value = backupData.exportTimestamp
                 } else {
-                    // Starts empty as requested (0 pre-built habits)
+                    _categories.value = DefaultCategories
                     _habits.value = emptyList()
                     _sessions.value = emptyList()
                 }
@@ -69,16 +82,41 @@ class TempoRepository(private val context: Context) {
             val now = System.currentTimeMillis()
             _lastSyncTimestamp.value = now
             val backup = BackupData(
-                version = 1,
+                version = 2,
                 exportTimestamp = now,
+                account = currentUser,
+                categories = _categories.value,
                 habits = _habits.value,
                 sessions = _sessions.value
             )
             val rawJson = json.encodeToString(backup)
             dataFile.writeText(rawJson)
-            com.example.tempo.widget.TempoWidgetProvider.updateAllWidgets(context)
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    fun addCategory(category: Category) {
+        repositoryScope.launch {
+            val updated = _categories.value + category
+            _categories.value = updated
+            saveDataToDisk()
+        }
+    }
+
+    fun updateCategory(category: Category) {
+        repositoryScope.launch {
+            val updated = _categories.value.map { if (it.id == category.id) category else it }
+            _categories.value = updated
+            saveDataToDisk()
+        }
+    }
+
+    fun deleteCategory(categoryId: String) {
+        repositoryScope.launch {
+            val updatedCats = _categories.value.filter { it.id != categoryId }
+            _categories.value = updatedCats
+            saveDataToDisk()
         }
     }
 
@@ -139,8 +177,10 @@ class TempoRepository(private val context: Context) {
 
     suspend fun exportJson(): String = withContext(Dispatchers.IO) {
         val backup = BackupData(
-            version = 1,
+            version = 2,
             exportTimestamp = System.currentTimeMillis(),
+            account = currentUser,
+            categories = _categories.value,
             habits = _habits.value,
             sessions = _sessions.value
         )
@@ -150,6 +190,7 @@ class TempoRepository(private val context: Context) {
     suspend fun importJson(jsonContent: String): Boolean = withContext(Dispatchers.IO) {
         try {
             val backup = json.decodeFromString<BackupData>(jsonContent)
+            _categories.value = if (backup.categories.isNotEmpty()) backup.categories else DefaultCategories
             _habits.value = backup.habits
             _sessions.value = backup.sessions
             saveDataToDisk()
@@ -162,6 +203,7 @@ class TempoRepository(private val context: Context) {
 
     fun clearAllData() {
         repositoryScope.launch {
+            _categories.value = DefaultCategories
             _habits.value = emptyList()
             _sessions.value = emptyList()
             saveDataToDisk()

@@ -6,103 +6,72 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.widget.RemoteViews
 import com.example.tempo.MainActivity
 import com.example.tempo.R
-import com.example.tempo.data.model.BackupData
-import com.example.tempo.service.TimerManager
-import kotlinx.serialization.json.Json
-import java.io.File
+import com.example.tempo.analytics.StatsCalculator
+import com.example.tempo.data.model.ActiveTimer
 
 class TempoWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         for (appWidgetId in appWidgetIds) {
-            updateAppWidget(context, appWidgetManager, appWidgetId)
-        }
-        super.onUpdate(context, appWidgetManager, appWidgetIds)
-    }
-
-    override fun onReceive(context: Context, intent: Intent) {
-        super.onReceive(context, intent)
-        if (intent.action == ACTION_TOGGLE_HABIT_TIMER) {
-            val habitId = intent.getStringExtra(EXTRA_HABIT_ID) ?: return
-            
-            // Toggle timer in background without launching app
-            val timerManager = TimerManager(context)
-            val isRunning = timerManager.isTimerRunning(habitId)
-            
-            if (isRunning) {
-                timerManager.endTimer(habitId) { _, _, _, _ -> }
-            } else {
-                val habit = loadHabitById(context, habitId)
-                if (habit != null) {
-                    timerManager.startTimer(habit)
-                }
-            }
-
-            // Refresh widget ListView
-            updateAllWidgets(context)
+            updateWidget(context, appWidgetManager, appWidgetId, emptyMap())
         }
     }
 
     companion object {
-        const val ACTION_TOGGLE_HABIT_TIMER = "com.example.tempo.ACTION_WIDGET_TOGGLE_HABIT"
-        const val EXTRA_HABIT_ID = "extra_habit_id"
-
-        fun updateAllWidgets(context: Context) {
+        fun updateAllWidgets(context: Context, activeTimers: Map<String, ActiveTimer>) {
             val appWidgetManager = AppWidgetManager.getInstance(context)
             val componentName = ComponentName(context, TempoWidgetProvider::class.java)
-            val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName) ?: return
-            
-            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.widget_list_view)
-            for (id in appWidgetIds) {
-                updateAppWidget(context, appWidgetManager, id)
+            val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
+            for (appWidgetId in appWidgetIds) {
+                updateWidget(context, appWidgetManager, appWidgetId, activeTimers)
             }
         }
 
-        private fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
-            val views = RemoteViews(context.packageName, R.layout.widget_tempo)
+        private fun updateWidget(
+            context: Context,
+            appWidgetManager: AppWidgetManager,
+            appWidgetId: Int,
+            activeTimers: Map<String, ActiveTimer>
+        ) {
+            val views = RemoteViews(context.packageName, R.layout.widget_tempo_layout)
 
-            // Service Intent for scrollable ListView
-            val serviceIntent = Intent(context, TempoWidgetService::class.java).apply {
-                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-                data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
+            // Intent for + Add Habit button in top right corner
+            val addIntent = Intent(context, MainActivity::class.java).apply {
+                action = "OPEN_ADD_HABIT"
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
-            views.setRemoteAdapter(R.id.widget_list_view, serviceIntent)
+            val addPendingIntent = PendingIntent.getActivity(
+                context,
+                101,
+                addIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            views.setOnClickPendingIntent(R.id.widget_btn_add, addPendingIntent)
 
-            // PendingIntent Template for 1-tap start/stop broadcast without opening main app
-            val toggleIntent = Intent(context, TempoWidgetProvider::class.java).apply {
-                action = ACTION_TOGGLE_HABIT_TIMER
-            }
-            val togglePendingIntent = PendingIntent.getBroadcast(
+            // Intent for clicking the widget body to open app
+            val appIntent = Intent(context, MainActivity::class.java)
+            val appPendingIntent = PendingIntent.getActivity(
                 context,
                 0,
-                toggleIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                appIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            views.setPendingIntentTemplate(R.id.widget_list_view, togglePendingIntent)
+            views.setOnClickPendingIntent(R.id.widget_title, appPendingIntent)
 
-            // Header click opens main app
-            val openAppIntent = Intent(context, MainActivity::class.java)
-            val openAppPendingIntent = PendingIntent.getActivity(
-                context, 0, openAppIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            views.setOnClickPendingIntent(R.id.widget_status, openAppPendingIntent)
+            // Render active stacked timers status
+            if (activeTimers.isEmpty()) {
+                views.setTextViewText(R.id.widget_active_timers, "No active timers running\nTap + Add to start a habit!")
+            } else {
+                val timerSummary = activeTimers.values.joinToString("\n") { timer ->
+                    "• ${timer.habitTitle}: ${StatsCalculator.formatTicker(timer.elapsedSeconds)}"
+                }
+                views.setTextViewText(R.id.widget_active_timers, "Active Stack (${activeTimers.size}):\n$timerSummary")
+            }
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
-        }
-
-        private fun loadHabitById(context: Context, habitId: String) = try {
-            val file = File(context.filesDir, "tempo_data_v1.json")
-            if (file.exists()) {
-                val json = Json { ignoreUnknownKeys = true }
-                val backupData = json.decodeFromString<BackupData>(file.readText())
-                backupData.habits.find { it.id == habitId }
-            } else null
-        } catch (e: Exception) {
-            null
         }
     }
 }
