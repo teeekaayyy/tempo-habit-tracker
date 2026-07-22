@@ -27,25 +27,33 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="+ Add"
-            android:textColor="#6366F1"
-            android:textSize="13sp"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
             android:textStyle="bold"
             android:paddingStart="10dp"
             android:paddingEnd="10dp"
-            android:paddingTop="4dp"
-            android:paddingBottom="4dp"
-            android:background="#1E293B"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:background="#6366F1"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true" />
     </RelativeLayout>
 
-    <TextView
-        android:id="@+id/widget_active_timers"
+    <ListView
+        android:id="@+id/widget_habit_list"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="No active timers running"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:divider="@null"
+        android:dividerHeight="4dp" />
+
+    <TextView
+        android:id="@+id/widget_empty_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:text="No habits created yet.\nTap + Add to create your first habit!"
         android:textColor="#94A3B8"
         android:textSize="12sp"
-        android:padding="8dp"
-        android:background="#1E293B" />
+        android:gravity="center"
+        android:visibility="gone" />
 </LinearLayout>
