@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -19,9 +20,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarOutline
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -34,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.tempo.data.model.Category
@@ -63,7 +62,7 @@ fun HabitTile(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 5.dp)
+            .padding(horizontal = 14.dp, vertical = 5.dp)
             .border(
                 width = if (isTimerRunning) 1.5.dp else 1.dp,
                 color = if (isTimerRunning) SecondaryEmerald else DarkSurfaceVariant,
@@ -75,136 +74,112 @@ fun HabitTile(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(horizontal = 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Left color bar & info
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+            // Left vertical color accent bar
+            Box(
+                modifier = Modifier
+                    .width(5.dp)
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(habitColor)
+            )
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            // Main Info Column
+            Column(
                 modifier = Modifier.weight(1f)
             ) {
+                // Title and Favorite Star
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = habit.title,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    IconButton(
+                        onClick = onToggleFavorite,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (habit.isFavorite) Icons.Default.Star else Icons.Default.StarOutline,
+                            contentDescription = "Favorite",
+                            tint = if (habit.isFavorite) FavoriteGold else TextSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                if (habit.description.isNotBlank()) {
+                    Text(
+                        text = habit.description,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = TextSecondary
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Category Badge
                 Box(
                     modifier = Modifier
-                        .width(6.dp)
-                        .height(48.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(habitColor)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = habit.title,
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary
-                            )
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-
-                        IconButton(
-                            onClick = onToggleFavorite,
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (habit.isFavorite) Icons.Default.Star else Icons.Default.StarOutline,
-                                contentDescription = "Favorite",
-                                tint = if (habit.isFavorite) FavoriteGold else TextSecondary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-
-                    if (habit.description.isNotBlank()) {
-                        Text(
-                            text = habit.description,
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = TextSecondary
-                            ),
-                            maxLines = 1
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.padding(top = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(habitColor.copy(alpha = 0.15f))
-                                .border(1.dp, habitColor.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = categoryName,
-                                fontSize = 10.sp,
-                                color = habitColor,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Timer,
-                                contentDescription = "Target",
-                                tint = TextSecondary,
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text(
-                                text = "${habit.targetDurationMinutes}m target",
-                                fontSize = 10.sp,
-                                color = TextSecondary
-                            )
-                        }
-                    }
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(habitColor.copy(alpha = 0.15f))
+                        .border(1.dp, habitColor.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = categoryName,
+                        fontSize = 10.sp,
+                        color = habitColor,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
 
-            // Right side buttons (Start/Tracking, Edit, Delete)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (isTimerRunning) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(SecondaryEmerald.copy(alpha = 0.2f))
-                            .border(1.dp, SecondaryEmerald, RoundedCornerShape(12.dp))
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            text = "Tracking...",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = SecondaryEmerald
-                        )
-                    }
-                } else {
-                    Button(
-                        onClick = onStartTimer,
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryIndigo),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                            horizontal = 12.dp,
-                            vertical = 8.dp
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Start",
-                            modifier = Modifier.size(16.dp),
-                            tint = Color.White
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = "Start", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
-                    }
-                }
+            Spacer(modifier = Modifier.width(8.dp))
 
-                Spacer(modifier = Modifier.width(2.dp))
+            // Right side action buttons: Small Circular Play Start button (grayed out when tracking), Edit, Delete
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // Small Circular Play button
+                IconButton(
+                    onClick = onStartTimer,
+                    enabled = !isTimerRunning,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (isTimerRunning) DarkSurfaceVariant else PrimaryIndigo
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = if (isTimerRunning) "Tracking" else "Start",
+                        tint = if (isTimerRunning) TextSecondary.copy(alpha = 0.4f) else Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
 
                 IconButton(
                     onClick = onEdit,

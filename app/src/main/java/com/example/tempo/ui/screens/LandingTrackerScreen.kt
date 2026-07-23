@@ -82,7 +82,6 @@ fun LandingTrackerScreen(
 
     val categoryMap = remember(categories) { categories.associateBy { it.id } }
 
-    // Single unified list sorted with Favorites at the top!
     val sortedHabits = remember(habits) {
         habits.sortedWith(compareByDescending<Habit> { it.isFavorite }.thenByDescending { it.createdAt })
     }
@@ -129,14 +128,14 @@ fun LandingTrackerScreen(
                     IconButton(onClick = onNavigateToDashboard) {
                         Icon(
                             imageVector = Icons.Default.BarChart,
-                            contentDescription = "Analytics Dashboard",
+                            contentDescription = "Stats",
                             tint = SecondaryEmerald
                         )
                     }
                     IconButton(onClick = onNavigateToCloudSync) {
                         Icon(
                             imageVector = Icons.Default.Cloud,
-                            contentDescription = "Cloud & Backup",
+                            contentDescription = "Cloud Sync & Backup",
                             tint = PrimaryIndigo
                         )
                     }
@@ -164,7 +163,7 @@ fun LandingTrackerScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Live Active Timers Header Banner
+            // Live Active Timers Banner Header
             ActiveTimersHeader(
                 activeTimers = activeTimers,
                 categoryMap = categoryMap,
@@ -173,7 +172,6 @@ fun LandingTrackerScreen(
             )
 
             if (habits.isEmpty()) {
-                // Initial clean onboarding state
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -225,7 +223,7 @@ fun LandingTrackerScreen(
                             Spacer(modifier = Modifier.height(8.dp))
 
                             Text(
-                                text = "Your tracker is clean with no pre-built habits.\nAdd your custom habits and tap Start to track with stopwatch timers!",
+                                text = "Your tracker is clean with no pre-built habits.\nAdd custom habits and tap Play to start tracking focus time!",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = TextSecondary,
                                     textAlign = TextAlign.Center
@@ -258,7 +256,6 @@ fun LandingTrackerScreen(
                     }
                 }
             } else {
-                // Unified single list of habits (Favorites sorted to the top)
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp)

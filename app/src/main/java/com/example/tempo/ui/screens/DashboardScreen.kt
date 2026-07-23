@@ -2,6 +2,7 @@ package com.example.tempo.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,13 +26,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Fireplace
 import androidx.compose.material.icons.filled.MilitaryTech
 import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,6 +44,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,19 +55,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.tempo.analytics.AchievementBadge
 import com.example.tempo.analytics.CategoryStreak
 import com.example.tempo.analytics.DailyComparisonStats
 import com.example.tempo.analytics.DayOfWeekStat
 import com.example.tempo.analytics.HabitStreak
 import com.example.tempo.analytics.StatsCalculator
 import com.example.tempo.analytics.UserLevel
+import com.example.tempo.data.model.Category
+import com.example.tempo.data.model.Habit
 import com.example.tempo.theme.AccentAmber
 import com.example.tempo.theme.AccentRose
 import com.example.tempo.theme.DarkBackground
 import com.example.tempo.theme.DarkSurface
 import com.example.tempo.theme.DarkSurfaceVariant
-import com.example.tempo.theme.FavoriteGold
 import com.example.tempo.theme.PrimaryIndigo
 import com.example.tempo.theme.PrimaryViolet
 import com.example.tempo.theme.SecondaryEmerald
@@ -82,6 +83,10 @@ fun DashboardScreen(
     viewModel: TempoViewModel,
     onNavigateBack: () -> Unit
 ) {
+    val habits by viewModel.habits.collectAsState()
+    val categories by viewModel.categories.collectAsState()
+    val sessions by viewModel.sessions.collectAsState()
+
     val dailyStats by viewModel.dailyStats.collectAsState()
     val weeklyStats by viewModel.weeklyStats.collectAsState()
     val categoryStats by viewModel.categoryStats.collectAsState()
@@ -90,14 +95,17 @@ fun DashboardScreen(
     val userLevel by viewModel.userLevel.collectAsState()
     val categoryStreaks by viewModel.categoryStreaks.collectAsState()
     val habitStreaks by viewModel.habitStreaks.collectAsState()
-    val badges by viewModel.achievementBadges.collectAsState()
+
+    // Interactive category and habit selection state
+    var selectedCategoryId by remember(categories) { mutableStateOf(categories.firstOrNull()?.id) }
+    var selectedHabitId by remember(habits) { mutableStateOf(habits.firstOrNull()?.id) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Gamified Analytics",
+                        text = "Stats",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             color = TextPrimary
@@ -126,7 +134,7 @@ fun DashboardScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Gamification Level & XP Progress Card
+            // Level & XP Progress Card
             UserLevelCard(userLevel = userLevel)
 
             // Overall Streak & Best Streak Card
@@ -187,18 +195,25 @@ fun DashboardScreen(
                 }
             }
 
-            // Category Streaks Section
-            if (categoryStreaks.isNotEmpty()) {
-                CategoryStreaksCard(categoryStreaks = categoryStreaks)
+            // Interactive Category History Breakdown
+            if (categories.isNotEmpty()) {
+                InteractiveCategoryCard(
+                    categories = categories,
+                    categoryStreaks = categoryStreaks,
+                    selectedCategoryId = selectedCategoryId,
+                    onSelectCategory = { selectedCategoryId = it }
+                )
             }
 
-            // Individual Habit Streaks Breakdown
-            if (habitStreaks.isNotEmpty()) {
-                HabitStreaksCard(habitStreaks = habitStreaks)
+            // Interactive Single Habit Streak Selector
+            if (habits.isNotEmpty()) {
+                InteractiveHabitStreakCard(
+                    habits = habits,
+                    habitStreaks = habitStreaks,
+                    selectedHabitId = selectedHabitId,
+                    onSelectHabit = { selectedHabitId = it }
+                )
             }
-
-            // Achievement Badges Grid
-            AchievementBadgesCard(badges = badges)
 
             // Daily Comparison Card (Today vs Yesterday)
             DailyComparisonCard(dailyStats = dailyStats)
@@ -206,7 +221,7 @@ fun DashboardScreen(
             // Weekly Trend Bar Chart
             WeeklyTrendCard(weeklyStats = weeklyStats)
 
-            // Category Breakdown Progress Bars
+            // Category Focus Distribution
             if (categoryStats.isNotEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -376,7 +391,15 @@ private fun UserLevelCard(userLevel: UserLevel) {
 }
 
 @Composable
-private fun CategoryStreaksCard(categoryStreaks: List<CategoryStreak>) {
+private fun InteractiveCategoryCard(
+    categories: List<Category>,
+    categoryStreaks: List<CategoryStreak>,
+    selectedCategoryId: String?,
+    onSelectCategory: (String) -> Unit
+) {
+    val selectedCat = categories.firstOrNull { it.id == selectedCategoryId } ?: categories.firstOrNull()
+    val selectedStreak = categoryStreaks.firstOrNull { it.category.id == selectedCat?.id }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = DarkSurface),
@@ -390,13 +413,13 @@ private fun CategoryStreaksCard(categoryStreaks: List<CategoryStreak>) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Default.Category,
-                    contentDescription = "Category Streaks",
+                    contentDescription = "Category Stats",
                     tint = SecondaryEmerald,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Category Streaks",
+                    text = "Category History",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
@@ -404,52 +427,97 @@ private fun CategoryStreaksCard(categoryStreaks: List<CategoryStreak>) {
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(categoryStreaks) { catStreak ->
-                    val catColor = parseHexColor(catStreak.category.colorHex)
+            // Scrollable selector chips
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(categories) { category ->
+                    val isSelected = category.id == selectedCat?.id
+                    val catColor = parseHexColor(category.colorHex)
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(DarkSurfaceVariant)
-                            .border(1.dp, catColor.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
-                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isSelected) catColor else DarkSurfaceVariant)
+                            .clickable { onSelectCategory(category.id) }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Column {
+                        Text(
+                            text = category.name,
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSelected) Color.White else TextSecondary
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Display details for selected category
+            selectedCat?.let { cat ->
+                val catColor = parseHexColor(cat.colorHex)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(DarkSurfaceVariant)
+                        .border(1.dp, catColor.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                        .padding(16.dp)
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
-                                        .size(8.dp)
+                                        .size(10.dp)
                                         .clip(CircleShape)
                                         .background(catColor)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = catStreak.category.name,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = TextPrimary
+                                    text = cat.name,
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
                                 )
                             }
-                            Spacer(modifier = Modifier.height(6.dp))
+
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.Default.Fireplace,
                                     contentDescription = null,
                                     tint = AccentAmber,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = "${catStreak.streakDays} Day Streak",
-                                    fontSize = 13.sp,
+                                    text = "${selectedStreak?.streakDays ?: 0} Days",
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = AccentAmber
                                 )
                             }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            MetricColumn(
+                                label = "Total Focus Time",
+                                value = StatsCalculator.formatDuration(selectedStreak?.totalTrackedSeconds ?: 0L)
+                            )
+                            MetricColumn(
+                                label = "Category Streak",
+                                value = "${selectedStreak?.streakDays ?: 0} Days"
+                            )
                         }
                     }
                 }
@@ -459,7 +527,15 @@ private fun CategoryStreaksCard(categoryStreaks: List<CategoryStreak>) {
 }
 
 @Composable
-private fun HabitStreaksCard(habitStreaks: List<HabitStreak>) {
+private fun InteractiveHabitStreakCard(
+    habits: List<Habit>,
+    habitStreaks: List<HabitStreak>,
+    selectedHabitId: String?,
+    onSelectHabit: (String) -> Unit
+) {
+    val selectedHabit = habits.firstOrNull { it.id == selectedHabitId } ?: habits.firstOrNull()
+    val selectedStreak = habitStreaks.firstOrNull { it.habit.id == selectedHabit?.id }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = DarkSurface),
@@ -473,13 +549,13 @@ private fun HabitStreaksCard(habitStreaks: List<HabitStreak>) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Default.Fireplace,
-                    contentDescription = "Habit Streaks",
+                    contentDescription = "Habit Streak",
                     tint = AccentAmber,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Habit Streaks",
+                    text = "Habit Streak Inspector",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
@@ -489,130 +565,82 @@ private fun HabitStreaksCard(habitStreaks: List<HabitStreak>) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                habitStreaks.take(5).forEach { habitStreak ->
-                    Row(
+            // Habit Selector Chips
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(habits) { habit ->
+                    val isSelected = habit.id == selectedHabit?.id
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(DarkSurfaceVariant)
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .background(if (isSelected) PrimaryIndigo else DarkSurfaceVariant)
+                            .clickable { onSelectHabit(habit.id) }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Text(
-                            text = habitStreak.habit.title,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextPrimary
+                            text = habit.title,
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSelected) Color.White else TextSecondary
                         )
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Fireplace,
-                                contentDescription = null,
-                                tint = AccentAmber,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "${habitStreak.streakDays} days",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = AccentAmber
-                            )
-                        }
                     }
                 }
             }
-        }
-    }
-}
 
-@Composable
-private fun AchievementBadgesCard(badges: List<AchievementBadge>) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = DarkSurface),
-        shape = RoundedCornerShape(20.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.EmojiEvents,
-                    contentDescription = "Badges",
-                    tint = FavoriteGold,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Achievement Badges",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
-                )
-            }
+            Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(badges) { badge ->
-                    val badgeColor = if (badge.isUnlocked) FavoriteGold else TextSecondary.copy(alpha = 0.4f)
-                    Box(
-                        modifier = Modifier
-                            .width(130.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(DarkSurfaceVariant)
-                            .border(
-                                width = 1.dp,
-                                color = if (badge.isUnlocked) FavoriteGold.copy(alpha = 0.5f) else Color.Transparent,
-                                shape = RoundedCornerShape(16.dp)
+            // Selected Habit Detail Card
+            selectedHabit?.let { habit ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(DarkSurfaceVariant)
+                        .padding(16.dp)
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = habit.title,
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
                             )
-                            .padding(12.dp)
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(if (badge.isUnlocked) FavoriteGold.copy(alpha = 0.2f) else DarkBackground),
-                                contentAlignment = Alignment.Center
-                            ) {
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = when (badge.iconName) {
-                                        "PlayArrow" -> Icons.Default.PlayArrow
-                                        "LocalFireDepartment" -> Icons.Default.Fireplace
-                                        "Star" -> Icons.Default.Star
-                                        "Category" -> Icons.Default.Category
-                                        "Timer" -> Icons.Default.Timer
-                                        else -> Icons.Default.EmojiEvents
-                                    },
-                                    contentDescription = badge.title,
-                                    tint = badgeColor,
-                                    modifier = Modifier.size(22.dp)
+                                    imageVector = Icons.Default.Fireplace,
+                                    contentDescription = null,
+                                    tint = AccentAmber,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "${selectedStreak?.streakDays ?: 0} Days",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AccentAmber
                                 )
                             }
+                        }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                            Text(
-                                text = badge.title,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (badge.isUnlocked) TextPrimary else TextSecondary,
-                                maxLines = 1
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            MetricColumn(
+                                label = "Total Focus Time",
+                                value = StatsCalculator.formatDuration(selectedStreak?.totalTrackedSeconds ?: 0L)
                             )
-
-                            Text(
-                                text = if (badge.isUnlocked) "Unlocked" else "Locked",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (badge.isUnlocked) SecondaryEmerald else TextSecondary.copy(alpha = 0.6f)
+                            MetricColumn(
+                                label = "Current Streak",
+                                value = "${selectedStreak?.streakDays ?: 0} Days"
                             )
                         }
                     }

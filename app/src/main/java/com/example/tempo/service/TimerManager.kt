@@ -3,7 +3,6 @@ package com.example.tempo.service
 import android.content.Context
 import com.example.tempo.data.model.ActiveTimer
 import com.example.tempo.data.model.Habit
-import com.example.tempo.widget.TempoWidgetProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -13,7 +12,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -98,7 +96,6 @@ class TimerManager(private val context: Context? = null) {
                         }
                     }
                     _activeTimers.value = updatedMap
-                    notifyWidgetUpdate()
                 }
             }
         }
@@ -120,7 +117,6 @@ class TimerManager(private val context: Context? = null) {
             current[habit.id] = newTimer
             _activeTimers.value = current
             persistActiveTimers()
-            notifyWidgetUpdate()
 
             context?.let {
                 TimerService.startService(it, current.size, habit.title)
@@ -135,7 +131,6 @@ class TimerManager(private val context: Context? = null) {
         current[habitId] = timer.copy(isPaused = isNowPaused)
         _activeTimers.value = current
         persistActiveTimers()
-        notifyWidgetUpdate()
     }
 
     fun endTimer(
@@ -153,7 +148,6 @@ class TimerManager(private val context: Context? = null) {
         }
 
         persistActiveTimers()
-        notifyWidgetUpdate()
 
         context?.let {
             if (current.isEmpty()) {
@@ -171,11 +165,5 @@ class TimerManager(private val context: Context? = null) {
 
     fun getTimer(habitId: String): ActiveTimer? {
         return _activeTimers.value[habitId]
-    }
-
-    private fun notifyWidgetUpdate() {
-        context?.let {
-            TempoWidgetProvider.updateAllWidgets(it, _activeTimers.value)
-        }
     }
 }
