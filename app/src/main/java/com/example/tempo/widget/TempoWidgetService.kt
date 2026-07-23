@@ -6,8 +6,6 @@ import android.graphics.Color
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import com.example.tempo.R
-import com.example.tempo.analytics.StatsCalculator
-import com.example.tempo.data.auth.AuthManager
 import com.example.tempo.data.model.ActiveTimer
 import com.example.tempo.data.model.Category
 import com.example.tempo.data.model.Habit
@@ -28,9 +26,7 @@ class TempoWidgetFactory(private val context: Context) : RemoteViewsService.Remo
     override fun onCreate() {}
 
     override fun onDataSetChanged() {
-        val authManager = AuthManager(context)
-        val currentUser = authManager.getCurrentAccount()
-        val repository = TempoRepository(context, currentUser)
+        val repository = TempoRepository(context)
 
         habits = repository.habits.value
         categoryMap = repository.categories.value.associateBy { it.id }
@@ -55,7 +51,6 @@ class TempoWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         views.setTextViewText(R.id.widget_item_title, habit.title)
         views.setTextViewText(R.id.widget_item_subtitle, "${category?.name ?: "Habit"} • ${habit.targetDurationMinutes}m target")
 
-        // Parse category color
         try {
             val colorInt = Color.parseColor(catColorHex)
             views.setInt(R.id.widget_item_color_bar, "setBackgroundColor", colorInt)
@@ -64,8 +59,7 @@ class TempoWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         }
 
         if (isRunning && activeTimer != null) {
-            views.setViewVisibility(R.id.widget_item_ticker, android.view.View.VISIBLE)
-            views.setTextViewText(R.id.widget_item_ticker, StatsCalculator.formatTicker(activeTimer.elapsedSeconds))
+            views.setViewVisibility(R.id.widget_item_ticker, android.view.View.GONE)
             views.setTextViewText(R.id.widget_item_btn_action, "⏹ Stop")
             views.setInt(R.id.widget_item_btn_action, "setBackgroundColor", Color.parseColor("#F43F5E"))
 

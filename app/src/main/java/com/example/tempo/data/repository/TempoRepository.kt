@@ -6,7 +6,6 @@ import com.example.tempo.data.model.Category
 import com.example.tempo.data.model.DefaultCategories
 import com.example.tempo.data.model.Habit
 import com.example.tempo.data.model.HabitSession
-import com.example.tempo.data.model.UserAccount
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,10 +21,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
-class TempoRepository(
-    private val context: Context,
-    private val currentUser: UserAccount?
-) {
+class TempoRepository(private val context: Context) {
     private val json = Json {
         prettyPrint = true
         ignoreUnknownKeys = true
@@ -33,10 +29,7 @@ class TempoRepository(
     }
 
     private val dataFile: File
-        get() {
-            val uid = currentUser?.userId ?: "guest"
-            return File(context.filesDir, "tempo_data_$uid.json")
-        }
+        get() = File(context.filesDir, "tempo_data_v1.json")
 
     private val _categories = MutableStateFlow<List<Category>>(DefaultCategories)
     val categories: StateFlow<List<Category>> = _categories.asStateFlow()
@@ -84,7 +77,6 @@ class TempoRepository(
             val backup = BackupData(
                 version = 2,
                 exportTimestamp = now,
-                account = currentUser,
                 categories = _categories.value,
                 habits = _habits.value,
                 sessions = _sessions.value
@@ -179,7 +171,6 @@ class TempoRepository(
         val backup = BackupData(
             version = 2,
             exportTimestamp = System.currentTimeMillis(),
-            account = currentUser,
             categories = _categories.value,
             habits = _habits.value,
             sessions = _sessions.value

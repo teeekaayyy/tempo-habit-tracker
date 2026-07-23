@@ -14,18 +14,24 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Fireplace
+import androidx.compose.material.icons.filled.MilitaryTech
 import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.TrendingDown
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,20 +54,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.tempo.analytics.AchievementBadge
+import com.example.tempo.analytics.CategoryStreak
 import com.example.tempo.analytics.DailyComparisonStats
 import com.example.tempo.analytics.DayOfWeekStat
+import com.example.tempo.analytics.HabitStreak
 import com.example.tempo.analytics.StatsCalculator
+import com.example.tempo.analytics.UserLevel
 import com.example.tempo.theme.AccentAmber
 import com.example.tempo.theme.AccentRose
 import com.example.tempo.theme.DarkBackground
 import com.example.tempo.theme.DarkSurface
 import com.example.tempo.theme.DarkSurfaceVariant
+import com.example.tempo.theme.FavoriteGold
 import com.example.tempo.theme.PrimaryIndigo
 import com.example.tempo.theme.PrimaryViolet
-import com.example.tempo.theme.parseHexColor
 import com.example.tempo.theme.SecondaryEmerald
 import com.example.tempo.theme.TextPrimary
 import com.example.tempo.theme.TextSecondary
+import com.example.tempo.theme.parseHexColor
 import com.example.tempo.ui.viewmodel.TempoViewModel
 import kotlin.math.roundToInt
 
@@ -76,12 +87,17 @@ fun DashboardScreen(
     val categoryStats by viewModel.categoryStats.collectAsState()
     val streakInfo by viewModel.streakInfo.collectAsState()
 
+    val userLevel by viewModel.userLevel.collectAsState()
+    val categoryStreaks by viewModel.categoryStreaks.collectAsState()
+    val habitStreaks by viewModel.habitStreaks.collectAsState()
+    val badges by viewModel.achievementBadges.collectAsState()
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Analytics & Insights",
+                        text = "Gamified Analytics",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             color = TextPrimary
@@ -91,7 +107,7 @@ fun DashboardScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = TextPrimary
                         )
@@ -110,7 +126,10 @@ fun DashboardScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Streak Card
+            // Gamification Level & XP Progress Card
+            UserLevelCard(userLevel = userLevel)
+
+            // Overall Streak & Best Streak Card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -131,7 +150,7 @@ fun DashboardScreen(
                 ) {
                     Column {
                         Text(
-                            text = "CURRENT STREAK",
+                            text = "OVERALL STREAK",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = AccentAmber,
@@ -146,7 +165,7 @@ fun DashboardScreen(
                             )
                         )
                         Text(
-                            text = "Best Streak: ${streakInfo.longestStreakDays} days",
+                            text = "All-Time Best: ${streakInfo.longestStreakDays} days",
                             style = MaterialTheme.typography.bodySmall.copy(color = TextSecondary)
                         )
                     }
@@ -168,13 +187,26 @@ fun DashboardScreen(
                 }
             }
 
+            // Category Streaks Section
+            if (categoryStreaks.isNotEmpty()) {
+                CategoryStreaksCard(categoryStreaks = categoryStreaks)
+            }
+
+            // Individual Habit Streaks Breakdown
+            if (habitStreaks.isNotEmpty()) {
+                HabitStreaksCard(habitStreaks = habitStreaks)
+            }
+
+            // Achievement Badges Grid
+            AchievementBadgesCard(badges = badges)
+
             // Daily Comparison Card (Today vs Yesterday)
             DailyComparisonCard(dailyStats = dailyStats)
 
             // Weekly Trend Bar Chart
             WeeklyTrendCard(weeklyStats = weeklyStats)
 
-            // Category Breakdown Card
+            // Category Breakdown Progress Bars
             if (categoryStats.isNotEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -195,7 +227,7 @@ fun DashboardScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Category Distribution",
+                                text = "Category Focus Share",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = TextPrimary
@@ -235,6 +267,353 @@ fun DashboardScreen(
                                     trackColor = DarkSurfaceVariant
                                 )
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserLevelCard(userLevel: UserLevel) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                brush = Brush.horizontalGradient(listOf(PrimaryIndigo, SecondaryEmerald)),
+                shape = RoundedCornerShape(20.dp)
+            ),
+        colors = CardDefaults.cardColors(containerColor = DarkSurface),
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(PrimaryIndigo.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MilitaryTech,
+                            contentDescription = "Level",
+                            tint = PrimaryIndigo,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "LEVEL ${userLevel.levelNumber}",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryIndigo,
+                            letterSpacing = 1.sp
+                        )
+                        Text(
+                            text = userLevel.title,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                        )
+                    }
+                }
+
+                Text(
+                    text = "${userLevel.totalXp} XP",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        color = SecondaryEmerald
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "XP Progress to Next Rank",
+                    fontSize = 11.sp,
+                    color = TextSecondary
+                )
+                Text(
+                    text = "${userLevel.currentLevelXp} / ${userLevel.requiredLevelXp} XP",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            LinearProgressIndicator(
+                progress = { userLevel.progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(10.dp)
+                    .clip(RoundedCornerShape(5.dp)),
+                color = SecondaryEmerald,
+                trackColor = DarkSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun CategoryStreaksCard(categoryStreaks: List<CategoryStreak>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = DarkSurface),
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Category,
+                    contentDescription = "Category Streaks",
+                    tint = SecondaryEmerald,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Category Streaks",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(categoryStreaks) { catStreak ->
+                    val catColor = parseHexColor(catStreak.category.colorHex)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(DarkSurfaceVariant)
+                            .border(1.dp, catColor.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                    ) {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(catColor)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = catStreak.category.name,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = TextPrimary
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Fireplace,
+                                    contentDescription = null,
+                                    tint = AccentAmber,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "${catStreak.streakDays} Day Streak",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AccentAmber
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HabitStreaksCard(habitStreaks: List<HabitStreak>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = DarkSurface),
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Fireplace,
+                    contentDescription = "Habit Streaks",
+                    tint = AccentAmber,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Habit Streaks",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                habitStreaks.take(5).forEach { habitStreak ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(DarkSurfaceVariant)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = habitStreak.habit.title,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary
+                        )
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Fireplace,
+                                contentDescription = null,
+                                tint = AccentAmber,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "${habitStreak.streakDays} days",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AccentAmber
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AchievementBadgesCard(badges: List<AchievementBadge>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = DarkSurface),
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.EmojiEvents,
+                    contentDescription = "Badges",
+                    tint = FavoriteGold,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Achievement Badges",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(badges) { badge ->
+                    val badgeColor = if (badge.isUnlocked) FavoriteGold else TextSecondary.copy(alpha = 0.4f)
+                    Box(
+                        modifier = Modifier
+                            .width(130.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(DarkSurfaceVariant)
+                            .border(
+                                width = 1.dp,
+                                color = if (badge.isUnlocked) FavoriteGold.copy(alpha = 0.5f) else Color.Transparent,
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .padding(12.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(if (badge.isUnlocked) FavoriteGold.copy(alpha = 0.2f) else DarkBackground),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = when (badge.iconName) {
+                                        "PlayArrow" -> Icons.Default.PlayArrow
+                                        "LocalFireDepartment" -> Icons.Default.Fireplace
+                                        "Star" -> Icons.Default.Star
+                                        "Category" -> Icons.Default.Category
+                                        "Timer" -> Icons.Default.Timer
+                                        else -> Icons.Default.EmojiEvents
+                                    },
+                                    contentDescription = badge.title,
+                                    tint = badgeColor,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Text(
+                                text = badge.title,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (badge.isUnlocked) TextPrimary else TextSecondary,
+                                maxLines = 1
+                            )
+
+                            Text(
+                                text = if (badge.isUnlocked) "Unlocked" else "Locked",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (badge.isUnlocked) SecondaryEmerald else TextSecondary.copy(alpha = 0.6f)
+                            )
                         }
                     }
                 }
@@ -295,7 +674,7 @@ private fun DailyComparisonCard(dailyStats: DailyComparisonStats) {
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = if (isUpVsYesterday) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                            imageVector = if (isUpVsYesterday) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
                             contentDescription = "Trend",
                             tint = if (isUpVsYesterday) SecondaryEmerald else AccentRose,
                             modifier = Modifier.size(16.dp)

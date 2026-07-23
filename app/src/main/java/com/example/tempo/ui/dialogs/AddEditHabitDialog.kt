@@ -1,7 +1,6 @@
 package com.example.tempo.ui.dialogs
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -64,14 +63,17 @@ import java.util.UUID
 @Composable
 fun AddEditHabitDialog(
     categories: List<Category>,
+    initialHabit: Habit? = null,
     onDismiss: () -> Unit,
     onSave: (Habit) -> Unit
 ) {
-    var title by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var selectedCategoryId by remember { mutableStateOf(categories.firstOrNull()?.id ?: "cat_prod") }
-    var targetMinutes by remember { mutableFloatStateOf(30f) }
-    var isFavorite by remember { mutableStateOf(false) }
+    val isEditing = initialHabit != null
+
+    var title by remember { mutableStateOf(initialHabit?.title ?: "") }
+    var description by remember { mutableStateOf(initialHabit?.description ?: "") }
+    var selectedCategoryId by remember { mutableStateOf(initialHabit?.categoryId ?: (categories.firstOrNull()?.id ?: "cat_prod")) }
+    var targetMinutes by remember { mutableFloatStateOf(initialHabit?.targetDurationMinutes?.toFloat() ?: 30f) }
+    var isFavorite by remember { mutableStateOf(initialHabit?.isFavorite ?: false) }
 
     var titleError by remember { mutableStateOf(false) }
 
@@ -93,7 +95,7 @@ fun AddEditHabitDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Create New Habit",
+                        text = if (isEditing) "Modify Habit" else "Create New Habit",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             color = TextPrimary
@@ -158,9 +160,9 @@ fun AddEditHabitDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Category selector (Category determines the color theme!)
+                // Category selector (Category determines color theme!)
                 Text(
-                    text = "Category (Sets Color Theme)",
+                    text = "Category (Color Theme)",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = TextSecondary
@@ -286,22 +288,26 @@ fun AddEditHabitDialog(
                             if (title.isBlank()) {
                                 titleError = true
                             } else {
-                                val newHabit = Habit(
-                                    id = UUID.randomUUID().toString(),
+                                val savedHabit = Habit(
+                                    id = initialHabit?.id ?: UUID.randomUUID().toString(),
                                     title = title.trim(),
                                     description = description.trim(),
                                     categoryId = selectedCategoryId,
                                     targetDurationMinutes = targetMinutes.toInt(),
                                     isFavorite = isFavorite,
-                                    createdAt = System.currentTimeMillis()
+                                    createdAt = initialHabit?.createdAt ?: System.currentTimeMillis()
                                 )
-                                onSave(newHabit)
+                                onSave(savedHabit)
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = PrimaryIndigo),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(text = "Save Habit", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = if (isEditing) "Save Changes" else "Save Habit",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }

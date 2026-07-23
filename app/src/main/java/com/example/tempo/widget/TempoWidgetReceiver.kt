@@ -3,7 +3,6 @@ package com.example.tempo.widget
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.example.tempo.data.auth.AuthManager
 import com.example.tempo.data.repository.TempoRepository
 import com.example.tempo.service.TimerManager
 
@@ -13,9 +12,7 @@ class TempoWidgetReceiver : BroadcastReceiver() {
         val action = intent.action ?: return
         val habitId = intent.getStringExtra(EXTRA_HABIT_ID) ?: return
 
-        val authManager = AuthManager(context)
-        val currentUser = authManager.getCurrentAccount()
-        val repository = TempoRepository(context, currentUser)
+        val repository = TempoRepository(context)
         val timerManager = TimerManager(context)
 
         val habits = repository.habits.value

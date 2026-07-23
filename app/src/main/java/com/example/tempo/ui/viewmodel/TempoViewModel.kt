@@ -3,33 +3,30 @@ package com.example.tempo.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.tempo.analytics.AchievementBadge
 import com.example.tempo.analytics.CategoryStat
+import com.example.tempo.analytics.CategoryStreak
 import com.example.tempo.analytics.DailyComparisonStats
 import com.example.tempo.analytics.DayOfWeekStat
+import com.example.tempo.analytics.GamificationEngine
+import com.example.tempo.analytics.HabitStreak
 import com.example.tempo.analytics.StatsCalculator
 import com.example.tempo.analytics.StreakInfo
-import com.example.tempo.data.auth.AuthManager
+import com.example.tempo.analytics.UserLevel
 import com.example.tempo.data.model.ActiveTimer
 import com.example.tempo.data.model.Category
 import com.example.tempo.data.model.Habit
 import com.example.tempo.data.model.HabitSession
-import com.example.tempo.data.model.UserAccount
 import com.example.tempo.data.repository.TempoRepository
 import com.example.tempo.service.TimerManager
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 
 class TempoViewModel(application: Application) : AndroidViewModel(application) {
 
-    val authManager = AuthManager(application.applicationContext)
-    private val _currentUser = MutableStateFlow<UserAccount?>(authManager.getCurrentAccount())
-    val currentUser: StateFlow<UserAccount?> = _currentUser.asStateFlow()
-
-    var repository = TempoRepository(application.applicationContext, _currentUser.value)
+    val repository = TempoRepository(application.applicationContext)
     val timerManager = TimerManager(application.applicationContext)
 
     val categories: StateFlow<List<Category>> = repository.categories
@@ -70,12 +67,37 @@ class TempoViewModel(application: Application) : AndroidViewModel(application) {
             StreakInfo(0, 0)
         )
 
-    fun createAccount(username: String, pin: String): UserAccount {
-        val account = authManager.createAccount(username, pin)
-        _currentUser.value = account
-        repository = TempoRepository(getApplication<Application>().applicationContext, account)
-        return account
-    }
+    val userLevel: StateFlow<UserLevel> = sessions
+        .combine(habits) { sessList, _ -> GamificationEngine.calculateUserLevel(sessList) }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            UserLevel(1, "Habit Novice", 0, 0, 100, 0f)
+        )
+
+    val categoryStreaks: StateFlow<List<CategoryStreak>> = combine(categories, habits, sessions) { catList, habitList, sessList ->
+        GamificationEngine.calculateCategoryStreaks(catList, habitList, sessList)
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        emptyList()
+    )
+
+    val habitStreaks: StateFlow<List<HabitStreak>> = combine(habits, sessions) { habitList, sessList ->
+        GamificationEngine.calculateHabitStreaks(habitList, sessList)
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        emptyList()
+    )
+
+    val achievementBadges: StateFlow<List<AchievementBadge>> = combine(categories, habits, sessions) { catList, habitList, sessList ->
+        GamificationEngine.getBadges(sessList, habitList, catList)
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        emptyList()
+    )
 
     fun addCategory(category: Category) {
         repository.addCategory(category)

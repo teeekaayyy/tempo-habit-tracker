@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarOutline
@@ -53,6 +54,7 @@ fun HabitTile(
     isTimerRunning: Boolean,
     onStartTimer: () -> Unit,
     onToggleFavorite: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     val habitColor = category?.let { parseHexColor(it.colorHex) } ?: PrimaryIndigo
@@ -61,7 +63,7 @@ fun HabitTile(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .padding(horizontal = 16.dp, vertical = 5.dp)
             .border(
                 width = if (isTimerRunning) 1.5.dp else 1.dp,
                 color = if (isTimerRunning) SecondaryEmerald else DarkSurfaceVariant,
@@ -77,7 +79,7 @@ fun HabitTile(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Left color pill & info (inherited from Category)
+            // Left color bar & info
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
@@ -100,7 +102,7 @@ fun HabitTile(
                                 color = TextPrimary
                             )
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
 
                         IconButton(
                             onClick = onToggleFavorite,
@@ -164,7 +166,7 @@ fun HabitTile(
                 }
             }
 
-            // Right side buttons
+            // Right side buttons (Start/Tracking, Edit, Delete)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (isTimerRunning) {
                     Box(
@@ -202,11 +204,23 @@ fun HabitTile(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(2.dp))
+
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit Habit",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
 
                 IconButton(
                     onClick = onDelete,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(30.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
