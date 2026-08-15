@@ -3,6 +3,7 @@ package com.example.tempo.service
 import android.content.Context
 import com.example.tempo.data.model.ActiveTimer
 import com.example.tempo.data.model.Habit
+import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -19,18 +20,36 @@ import java.io.File
 class TimerManager(private val context: Context? = null) {
     private val scope = CoroutineScope(Dispatchers.Default)
     private var tickerJob: Job? = null
+    private var currentUserId: String? = null
 
     private val json = Json { ignoreUnknownKeys = true }
 
     private val timersFile: File?
-        get() = context?.let { File(it.filesDir, "active_timers_v1.json") }
+        get() {
+            val uid = currentUserId ?: return null
+            return context?.let { File(it.filesDir, "active_timers_$uid.json") }
+        }
 
     private val _activeTimers = MutableStateFlow<Map<String, ActiveTimer>>(emptyMap())
     val activeTimers: StateFlow<Map<String, ActiveTimer>> = _activeTimers.asStateFlow()
 
     init {
-        loadPersistedTimers()
         startTicker()
+    }
+
+    fun setUser(user: FirebaseUser?) {
+        val newUid = user?.uid
+        if (currentUserId == newUid) return
+
+        persistActiveTimers()
+        currentUserId = newUid
+        _activeTimers.value = emptyMap()
+
+        context?.let { TimerService.stopService(it) }
+
+        if (newUid != null) {
+            loadPersistedTimers()
+        }
     }
 
     private fun loadPersistedTimers() {
@@ -63,19 +82,17 @@ class TimerManager(private val context: Context? = null) {
     }
 
     private fun persistActiveTimers() {
-        scope.launch(Dispatchers.IO) {
-            try {
-                val file = timersFile ?: return@launch
-                val map = _activeTimers.value
-                if (map.isEmpty()) {
-                    if (file.exists()) file.delete()
-                } else {
-                    val raw = json.encodeToString(map)
-                    file.writeText(raw)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
+        val file = timersFile ?: return
+        try {
+            val map = _activeTimers.value
+            if (map.isEmpty()) {
+                if (file.exists()) file.delete()
+            } else {
+                val raw = json.encodeToString(map)
+                file.writeText(raw)
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 

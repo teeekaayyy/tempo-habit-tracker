@@ -59,15 +59,15 @@ class TempoRepository(private val context: Context) {
         detachListeners()
         currentUser = user
 
-        if (user == null) {
-            _categories.value = DefaultCategories
-            _habits.value = emptyList()
-            _sessions.value = emptyList()
-            return
-        }
+        // Reset state immediately so user views never leak data between accounts
+        _categories.value = DefaultCategories
+        _habits.value = emptyList()
+        _sessions.value = emptyList()
 
-        loadLocalCacheForUser(user.uid)
-        attachFirestoreListeners(user.uid)
+        if (user != null) {
+            loadLocalCacheForUser(user.uid)
+            attachFirestoreListeners(user.uid)
+        }
     }
 
     private fun detachListeners() {
@@ -135,7 +135,7 @@ class TempoRepository(private val context: Context) {
                     }
 
                     if (catList.isEmpty()) {
-                        // Seed default categories
+                        // Seed default categories for new user profile
                         DefaultCategories.forEach { cat ->
                             userRef.collection("categories").document(cat.id).set(cat)
                         }

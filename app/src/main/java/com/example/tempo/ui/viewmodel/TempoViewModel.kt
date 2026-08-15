@@ -44,6 +44,7 @@ class TempoViewModel(application: Application) : AndroidViewModel(application) {
     init {
         viewModelScope.launch {
             currentUser.collect { user ->
+                timerManager.setUser(user)
                 repository.setUser(user)
             }
         }
@@ -159,6 +160,8 @@ class TempoViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun signOut(onComplete: () -> Unit) {
+        timerManager.setUser(null)
+        repository.setUser(null)
         authManager.signOut(onComplete)
     }
 
