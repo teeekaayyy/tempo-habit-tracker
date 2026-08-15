@@ -2,6 +2,7 @@ package com.example.tempo.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -22,11 +23,15 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -50,9 +55,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.tempo.data.model.Habit
 import com.example.tempo.theme.DarkBackground
 import com.example.tempo.theme.DarkSurface
+import com.example.tempo.theme.DarkSurfaceVariant
 import com.example.tempo.theme.PrimaryIndigo
 import com.example.tempo.theme.PrimaryViolet
 import com.example.tempo.theme.SecondaryEmerald
@@ -75,10 +82,12 @@ fun LandingTrackerScreen(
     val habits by viewModel.habits.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val activeTimers by viewModel.activeTimers.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(openAddHabitDirectly) }
     var habitToEdit by remember { mutableStateOf<Habit?>(null) }
     var showCategoryDialog by remember { mutableStateOf(false) }
+    var showAccountMenu by remember { mutableStateOf(false) }
 
     val categoryMap = remember(categories) { categories.associateBy { it.id } }
 
@@ -138,6 +147,66 @@ fun LandingTrackerScreen(
                             contentDescription = "Cloud Sync & Backup",
                             tint = PrimaryIndigo
                         )
+                    }
+
+                    // Account profile avatar menu
+                    Box {
+                        Box(
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(PrimaryIndigo)
+                                .clickable { showAccountMenu = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = currentUser?.email?.take(1)?.uppercase() ?: "U",
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                fontSize = 13.sp
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showAccountMenu,
+                            onDismissRequest = { showAccountMenu = false },
+                            modifier = Modifier
+                                .background(DarkSurface)
+                                .border(1.dp, DarkSurfaceVariant, RoundedCornerShape(12.dp))
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = currentUser?.displayName ?: "Signed in as",
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary,
+                                    fontSize = 13.sp
+                                )
+                                Text(
+                                    text = currentUser?.email ?: "",
+                                    color = TextSecondary,
+                                    fontSize = 11.sp
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Logout,
+                                            contentDescription = "Switch Account",
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Switch Account / Sign Out", color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                                    }
+                                },
+                                onClick = {
+                                    showAccountMenu = false
+                                    viewModel.signOut {}
+                                }
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBackground)

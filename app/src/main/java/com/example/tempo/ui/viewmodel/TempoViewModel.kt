@@ -13,27 +13,41 @@ import com.example.tempo.analytics.HabitStreak
 import com.example.tempo.analytics.StatsCalculator
 import com.example.tempo.analytics.StreakInfo
 import com.example.tempo.analytics.UserLevel
+import com.example.tempo.data.auth.AuthManager
 import com.example.tempo.data.model.ActiveTimer
 import com.example.tempo.data.model.Category
 import com.example.tempo.data.model.Habit
 import com.example.tempo.data.model.HabitSession
 import com.example.tempo.data.repository.TempoRepository
 import com.example.tempo.service.TimerManager
+import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class TempoViewModel(application: Application) : AndroidViewModel(application) {
 
+    val authManager = AuthManager(application.applicationContext)
     val repository = TempoRepository(application.applicationContext)
     val timerManager = TimerManager(application.applicationContext)
+
+    val currentUser: StateFlow<FirebaseUser?> = authManager.currentUser
 
     val categories: StateFlow<List<Category>> = repository.categories
     val habits: StateFlow<List<Habit>> = repository.habits
     val sessions: StateFlow<List<HabitSession>> = repository.sessions
     val activeTimers: StateFlow<Map<String, ActiveTimer>> = timerManager.activeTimers
     val lastSyncTimestamp: StateFlow<Long?> = repository.lastSyncTimestamp
+
+    init {
+        viewModelScope.launch {
+            currentUser.collect { user ->
+                repository.setUser(user)
+            }
+        }
+    }
 
     val dailyStats: StateFlow<DailyComparisonStats> = sessions
         .combine(habits) { sessList, _ -> StatsCalculator.getDailyComparison(sessList) }
@@ -142,6 +156,10 @@ class TempoViewModel(application: Application) : AndroidViewModel(application) {
         timerManager.endTimer(habitId) { hId, startTime, endTime, durationSec ->
             repository.logSession(hId, startTime, endTime, durationSec)
         }
+    }
+
+    fun signOut(onComplete: () -> Unit) {
+        authManager.signOut(onComplete)
     }
 
     suspend fun exportBackup(): String {

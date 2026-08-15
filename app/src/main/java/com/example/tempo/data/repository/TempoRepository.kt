@@ -6,6 +6,9 @@ import com.example.tempo.data.model.Category
 import com.example.tempo.data.model.DefaultCategories
 import com.example.tempo.data.model.Habit
 import com.example.tempo.data.model.HabitSession
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,14 +25,20 @@ import java.util.Locale
 import java.util.UUID
 
 class TempoRepository(private val context: Context) {
+
+    private val firestore = FirebaseFirestore.getInstance()
+
     private val json = Json {
         prettyPrint = true
         ignoreUnknownKeys = true
         encodeDefaults = true
     }
 
-    private val dataFile: File
-        get() = File(context.filesDir, "tempo_data_v1.json")
+    private var currentUser: FirebaseUser? = null
+
+    private var categoriesListener: ListenerRegistration? = null
+    private var habitsListener: ListenerRegistration? = null
+    private var sessionsListener: ListenerRegistration? = null
 
     private val _categories = MutableStateFlow<List<Category>>(DefaultCategories)
     val categories: StateFlow<List<Category>> = _categories.asStateFlow()
@@ -45,24 +54,42 @@ class TempoRepository(private val context: Context) {
 
     private val repositoryScope = CoroutineScope(Dispatchers.IO)
 
-    init {
-        loadDataFromDisk()
+    fun setUser(user: FirebaseUser?) {
+        if (currentUser?.uid == user?.uid) return
+        detachListeners()
+        currentUser = user
+
+        if (user == null) {
+            _categories.value = DefaultCategories
+            _habits.value = emptyList()
+            _sessions.value = emptyList()
+            return
+        }
+
+        loadLocalCacheForUser(user.uid)
+        attachFirestoreListeners(user.uid)
     }
 
-    private fun loadDataFromDisk() {
+    private fun detachListeners() {
+        categoriesListener?.remove()
+        habitsListener?.remove()
+        sessionsListener?.remove()
+        categoriesListener = null
+        habitsListener = null
+        sessionsListener = null
+    }
+
+    private fun loadLocalCacheForUser(userId: String) {
         repositoryScope.launch {
             try {
-                if (dataFile.exists()) {
-                    val rawJson = dataFile.readText()
+                val file = File(context.filesDir, "tempo_data_$userId.json")
+                if (file.exists()) {
+                    val rawJson = file.readText()
                     val backupData = json.decodeFromString<BackupData>(rawJson)
                     _categories.value = if (backupData.categories.isNotEmpty()) backupData.categories else DefaultCategories
                     _habits.value = backupData.habits
                     _sessions.value = backupData.sessions
                     _lastSyncTimestamp.value = backupData.exportTimestamp
-                } else {
-                    _categories.value = DefaultCategories
-                    _habits.value = emptyList()
-                    _sessions.value = emptyList()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -70,101 +97,159 @@ class TempoRepository(private val context: Context) {
         }
     }
 
-    private suspend fun saveDataToDisk() = withContext(Dispatchers.IO) {
-        try {
-            val now = System.currentTimeMillis()
-            _lastSyncTimestamp.value = now
-            val backup = BackupData(
-                version = 2,
-                exportTimestamp = now,
-                categories = _categories.value,
-                habits = _habits.value,
-                sessions = _sessions.value
-            )
-            val rawJson = json.encodeToString(backup)
-            dataFile.writeText(rawJson)
-        } catch (e: Exception) {
-            e.printStackTrace()
+    private fun saveLocalCacheForUser(userId: String) {
+        repositoryScope.launch {
+            try {
+                val file = File(context.filesDir, "tempo_data_$userId.json")
+                val now = System.currentTimeMillis()
+                _lastSyncTimestamp.value = now
+                val backup = BackupData(
+                    version = 2,
+                    exportTimestamp = now,
+                    categories = _categories.value,
+                    habits = _habits.value,
+                    sessions = _sessions.value
+                )
+                val rawJson = json.encodeToString(backup)
+                file.writeText(rawJson)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
+    }
+
+    private fun attachFirestoreListeners(userId: String) {
+        val userRef = firestore.collection("users").document(userId)
+
+        // Categories listener
+        categoriesListener = userRef.collection("categories")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) return@addSnapshotListener
+                if (snapshot != null) {
+                    val catList = snapshot.documents.mapNotNull { doc ->
+                        val id = doc.getString("id") ?: doc.id
+                        val name = doc.getString("name") ?: return@mapNotNull null
+                        val colorHex = doc.getString("colorHex") ?: "#6366F1"
+                        val iconName = doc.getString("iconName") ?: "Category"
+                        Category(id, name, colorHex, iconName)
+                    }
+
+                    if (catList.isEmpty()) {
+                        // Seed default categories
+                        DefaultCategories.forEach { cat ->
+                            userRef.collection("categories").document(cat.id).set(cat)
+                        }
+                        _categories.value = DefaultCategories
+                    } else {
+                        _categories.value = catList
+                    }
+                    saveLocalCacheForUser(userId)
+                }
+            }
+
+        // Habits listener
+        habitsListener = userRef.collection("habits")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) return@addSnapshotListener
+                if (snapshot != null) {
+                    val habitList = snapshot.documents.mapNotNull { doc ->
+                        val id = doc.getString("id") ?: doc.id
+                        val title = doc.getString("title") ?: return@mapNotNull null
+                        val description = doc.getString("description") ?: ""
+                        val categoryId = doc.getString("categoryId") ?: "cat_prod"
+                        val iconName = doc.getString("iconName") ?: "Timer"
+                        val targetDurationMinutes = doc.getLong("targetDurationMinutes")?.toInt() ?: 30
+                        val isFavorite = doc.getBoolean("isFavorite") ?: false
+                        val createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()
+                        Habit(id, title, description, categoryId, iconName, targetDurationMinutes, isFavorite, createdAt)
+                    }
+                    _habits.value = habitList
+                    saveLocalCacheForUser(userId)
+                }
+            }
+
+        // Sessions listener
+        sessionsListener = userRef.collection("sessions")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) return@addSnapshotListener
+                if (snapshot != null) {
+                    val sessionList = snapshot.documents.mapNotNull { doc ->
+                        val id = doc.getString("id") ?: doc.id
+                        val habitId = doc.getString("habitId") ?: return@mapNotNull null
+                        val startTime = doc.getLong("startTime") ?: 0L
+                        val endTime = doc.getLong("endTime") ?: 0L
+                        val durationSeconds = doc.getLong("durationSeconds") ?: 0L
+                        val dateIso = doc.getString("dateIso") ?: ""
+                        HabitSession(id, habitId, startTime, endTime, durationSeconds, dateIso)
+                    }
+                    _sessions.value = sessionList
+                    saveLocalCacheForUser(userId)
+                }
+            }
     }
 
     fun addCategory(category: Category) {
-        repositoryScope.launch {
-            val updated = _categories.value + category
-            _categories.value = updated
-            saveDataToDisk()
-        }
+        val user = currentUser ?: return
+        firestore.collection("users").document(user.uid)
+            .collection("categories").document(category.id).set(category)
     }
 
     fun updateCategory(category: Category) {
-        repositoryScope.launch {
-            val updated = _categories.value.map { if (it.id == category.id) category else it }
-            _categories.value = updated
-            saveDataToDisk()
-        }
+        addCategory(category)
     }
 
     fun deleteCategory(categoryId: String) {
-        repositoryScope.launch {
-            val updatedCats = _categories.value.filter { it.id != categoryId }
-            _categories.value = updatedCats
-            saveDataToDisk()
-        }
+        val user = currentUser ?: return
+        firestore.collection("users").document(user.uid)
+            .collection("categories").document(categoryId).delete()
     }
 
     fun addHabit(habit: Habit) {
-        repositoryScope.launch {
-            val updated = _habits.value + habit
-            _habits.value = updated
-            saveDataToDisk()
-        }
+        val user = currentUser ?: return
+        firestore.collection("users").document(user.uid)
+            .collection("habits").document(habit.id).set(habit)
     }
 
     fun updateHabit(updatedHabit: Habit) {
-        repositoryScope.launch {
-            val updated = _habits.value.map { if (it.id == updatedHabit.id) updatedHabit else it }
-            _habits.value = updated
-            saveDataToDisk()
-        }
+        addHabit(updatedHabit)
     }
 
     fun toggleFavorite(habitId: String) {
-        repositoryScope.launch {
-            val updated = _habits.value.map {
-                if (it.id == habitId) it.copy(isFavorite = !it.isFavorite) else it
-            }
-            _habits.value = updated
-            saveDataToDisk()
-        }
+        val user = currentUser ?: return
+        val habit = _habits.value.firstOrNull { it.id == habitId } ?: return
+        val updated = habit.copy(isFavorite = !habit.isFavorite)
+        addHabit(updated)
     }
 
     fun deleteHabit(habitId: String) {
-        repositoryScope.launch {
-            val updatedHabits = _habits.value.filter { it.id != habitId }
-            val updatedSessions = _sessions.value.filter { it.habitId != habitId }
-            _habits.value = updatedHabits
-            _sessions.value = updatedSessions
-            saveDataToDisk()
+        val user = currentUser ?: return
+        val batch = firestore.batch()
+        val habitRef = firestore.collection("users").document(user.uid).collection("habits").document(habitId)
+        batch.delete(habitRef)
+
+        val userSessions = _sessions.value.filter { it.habitId == habitId }
+        userSessions.forEach { session ->
+            val sessRef = firestore.collection("users").document(user.uid).collection("sessions").document(session.id)
+            batch.delete(sessRef)
         }
+        batch.commit()
     }
 
     fun logSession(habitId: String, startTime: Long, endTime: Long, durationSeconds: Long) {
         if (durationSeconds <= 0) return
-        repositoryScope.launch {
-            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            val dateIso = dateFormat.format(Date(endTime))
-            val newSession = HabitSession(
-                id = UUID.randomUUID().toString(),
-                habitId = habitId,
-                startTime = startTime,
-                endTime = endTime,
-                durationSeconds = durationSeconds,
-                dateIso = dateIso
-            )
-            val updated = _sessions.value + newSession
-            _sessions.value = updated
-            saveDataToDisk()
-        }
+        val user = currentUser ?: return
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val dateIso = dateFormat.format(Date(endTime))
+        val newSession = HabitSession(
+            id = UUID.randomUUID().toString(),
+            habitId = habitId,
+            startTime = startTime,
+            endTime = endTime,
+            durationSeconds = durationSeconds,
+            dateIso = dateIso
+        )
+        firestore.collection("users").document(user.uid)
+            .collection("sessions").document(newSession.id).set(newSession)
     }
 
     suspend fun exportJson(): String = withContext(Dispatchers.IO) {
@@ -180,11 +265,22 @@ class TempoRepository(private val context: Context) {
 
     suspend fun importJson(jsonContent: String): Boolean = withContext(Dispatchers.IO) {
         try {
+            val user = currentUser ?: return@withContext false
             val backup = json.decodeFromString<BackupData>(jsonContent)
-            _categories.value = if (backup.categories.isNotEmpty()) backup.categories else DefaultCategories
-            _habits.value = backup.habits
-            _sessions.value = backup.sessions
-            saveDataToDisk()
+
+            val batch = firestore.batch()
+            val userRef = firestore.collection("users").document(user.uid)
+
+            backup.categories.forEach { cat ->
+                batch.set(userRef.collection("categories").document(cat.id), cat)
+            }
+            backup.habits.forEach { habit ->
+                batch.set(userRef.collection("habits").document(habit.id), habit)
+            }
+            backup.sessions.forEach { sess ->
+                batch.set(userRef.collection("sessions").document(sess.id), sess)
+            }
+            batch.commit()
             true
         } catch (e: Exception) {
             e.printStackTrace()
@@ -193,11 +289,19 @@ class TempoRepository(private val context: Context) {
     }
 
     fun clearAllData() {
-        repositoryScope.launch {
-            _categories.value = DefaultCategories
-            _habits.value = emptyList()
-            _sessions.value = emptyList()
-            saveDataToDisk()
+        val user = currentUser ?: return
+        val batch = firestore.batch()
+        val userRef = firestore.collection("users").document(user.uid)
+
+        _categories.value.forEach { cat ->
+            batch.delete(userRef.collection("categories").document(cat.id))
         }
+        _habits.value.forEach { habit ->
+            batch.delete(userRef.collection("habits").document(habit.id))
+        }
+        _sessions.value.forEach { sess ->
+            batch.delete(userRef.collection("sessions").document(sess.id))
+        }
+        batch.commit()
     }
 }

@@ -12,7 +12,20 @@
           "package_name": "com.example.tempo"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "341617153165-allsallkjep0ronj7eig0352ja4uleme.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tempo",
+            "certificate_hash": "098ab534ab5066bc564300a1a1026439b8aec0d0"
+          }
+        },
+        {
+          "client_id": "341617153165-brgvk68v6ucv9nt3q659u33dk0a6ning.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDLBpkl5IG1MOb_DsRem8nji8Hf8_pw4pY"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "341617153165-brgvk68v6ucv9nt3q659u33dk0a6ning.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
