@@ -3,6 +3,7 @@ package com.example.tempo.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -24,7 +25,7 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -42,6 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -70,6 +73,7 @@ import com.example.tempo.ui.components.HabitTile
 import com.example.tempo.ui.dialogs.AddEditHabitDialog
 import com.example.tempo.ui.dialogs.CategoryManagerDialog
 import com.example.tempo.ui.viewmodel.TempoViewModel
+import com.example.tempo.updater.AppUpdateManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,10 +83,18 @@ fun LandingTrackerScreen(
     onNavigateToDashboard: () -> Unit,
     onNavigateToCloudSync: () -> Unit
 ) {
+    val context = LocalContext.current
     val habits by viewModel.habits.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val activeTimers by viewModel.activeTimers.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
+
+    val updateManager = remember { AppUpdateManager(context) }
+    val updateInfo by updateManager.updateState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        updateManager.checkForUpdates()
+    }
 
     var showAddDialog by remember { mutableStateOf(openAddHabitDirectly) }
     var habitToEdit by remember { mutableStateOf<Habit?>(null) }
@@ -232,6 +244,64 @@ fun LandingTrackerScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            // New In-App Update Available Banner
+            updateInfo?.let { update ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Brush.horizontalGradient(listOf(PrimaryIndigo, SecondaryEmerald)))
+                        .padding(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SystemUpdate,
+                                contentDescription = "Update",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Update Available (${update.versionTag})",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    fontSize = 13.sp
+                                )
+                                Text(
+                                    text = "Tap Install to update Tempo to the latest build",
+                                    color = Color.White.copy(alpha = 0.85f),
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = { updateManager.downloadAndInstall(update) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "Install",
+                                color = PrimaryIndigo,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+            }
+
             // Live Active Timers Banner Header
             ActiveTimersHeader(
                 activeTimers = activeTimers,
